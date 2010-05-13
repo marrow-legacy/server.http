@@ -29,7 +29,7 @@ if sys.version_info >= (3,0):
 else:
     from __builtin__ import execfile
 
-execfile(os.path.join("pulp", "util", "release.py"), globals(), locals())
+execfile(os.path.join("pulp", "server", "http", "release.py"), globals(), locals())
 
 
 
@@ -46,7 +46,7 @@ setup(
         license = license,
         keywords = '',
         
-        install_requires = [],
+        install_requires = ['pulp.util'],
         
         test_suite = 'nose.collector',
         tests_require = ['nose', 'coverage', 'nose-achievements'],
@@ -69,5 +69,9 @@ setup(
             },
         zip_safe = True,
         
-        namespace_packages = ['pulp'],
+        namespace_packages = ['pulp', 'pulp.server'],
+        
+        entry_points = {
+                'pulp.server': ['http = pulp.server.http:HTTPServer']
+            }
     )
