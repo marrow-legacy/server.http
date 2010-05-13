@@ -1,0 +1,14 @@
+h2. Pulp Utilities Collection
+
+This package contains many commonly reimplemented utility classes and functions covering the following major areas:
+
+* attribute, partial/subset, case-insensitive, and multi-value dicts
+* py3k source compatibility (without using 2to3)
+* string to rich datatype conversion of bools, simple arrays, and complex keyword/tag parsing
+* rich OOP helpers: nested list flattening, a NoDefault implementation, dot-notation object loading, and a LRU cache
+* path manipulation
+* UTC, universal time constants, english to numerical month and DotW conversion, and date field range constants
+
+This package will likely grow to include a number of additional nifty things in the future.
+
+Currently (as of 0.1.0 release) @pulp.util@ boasts 100% unit test coverage under Python 2.6 and 100% test success under Python 3.1 without any pre-processing of source files using the @2to3@ utility.  This package demonstrates its own capability to give your applications true source-level compatibility with py3k.
