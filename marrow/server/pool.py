@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 
 class ThreadPool(object):
     def __repr__(self):
-        return "ThreadPool(%d threads, %d maximum)" % (self.pool, self.maximum)
+        return "ThreadPool(%d jobs, %d of %d threads)" % (self.queue.qsize(), self.pool, self.maximum)
     
     def __init__(self, protocol, minimum=5, maximum=100, divisor=10, timeout=60):
         log.debug("Thread pool starting.")
