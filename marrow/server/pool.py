@@ -7,7 +7,6 @@ Worker threads are spawned based on demand at the time a message is added to the
 
 import logging
 
-from copy import deepcopy
 from math import ceil
 
 from Queue import Queue, Empty
@@ -47,7 +46,7 @@ class ThreadPool(object):
         log.debug("Thread pool ready.")
     
     def __call__(self, request):
-        self.queue.put(deepcopy(request))
+        self.queue.put(request)
         optimum = self.optimum
         
         if self.pool < optimum:
@@ -99,7 +98,7 @@ class ThreadPool(object):
                         self.queue.task_done()
                         break
                     
-                    self.protocol.request(request)
+                    self.protocol(request)
                     jobs += 1
                     self.queue.task_done()
                 
@@ -142,7 +141,7 @@ if __name__ == '__main__':
         def request(self, request):
             log.info("Processing: %r", request)
     
-    pool = ThreadPool(Protocol(), minimum=1)
+    pool = ThreadPool(Protocol().request, minimum=1)
     
     for i in range(10000):
         log.warn("Adding request.  Pool size: %d", pool.queue.qsize())
