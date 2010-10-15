@@ -29,7 +29,7 @@ if sys.version_info >= (3,0):
 else:
     from __builtin__ import execfile
 
-execfile(os.path.join("pulp", "server", "http", "release.py"), globals(), locals())
+execfile(os.path.join("marrow", "server", "http", "release.py"), globals(), locals())
 
 
 
@@ -46,7 +46,7 @@ setup(
         license = license,
         keywords = '',
         
-        install_requires = ['pulp.util'],
+        install_requires = ['marrow.util'],
         
         test_suite = 'nose.collector',
         tests_require = ['nose', 'coverage', 'nose-achievements'],
@@ -58,7 +58,8 @@ setup(
                 "License :: OSI Approved :: MIT License",
                 "Operating System :: OS Independent",
                 "Programming Language :: Python",
-                "Topic :: Software Development :: Libraries :: Python Modules"
+                "Topic :: Software Development :: Libraries :: Python Modules",
+                "Topic :: Internet :: WWW/HTTP :: HTTP Servers"
             ],
         
         packages = find_packages(exclude=['tests', 'tests.*', 'docs']),
@@ -69,9 +70,9 @@ setup(
             },
         zip_safe = True,
         
-        namespace_packages = ['pulp', 'pulp.server'],
+        namespace_packages = ['marrow', 'marrow.server'],
         
         entry_points = {
-                'pulp.server': ['http = pulp.server.http:HTTPServer']
+                'marrow.server': ['http = marrow.server.http:HTTPServer']
             }
     )
