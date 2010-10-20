@@ -1,3 +1,14 @@
 h2. Marrow HTTP/1.1 Server
 
 A fast, multi-threaded, multi-process, optionally asynchronous HTTP/1.1-compatible WSGI 2 server.
+
+* Based on Tornado's IOLoop/IOStream architecture.
+* Not as fast as Tornado's web server, but understands WSGI natively while maintaining async support.
+* Understands WSGI 2; something no other WSGI server does.  ;)
+
+In the near future:
+
+* Multi-threaded and multi-process support for better load balancing and throughput.
+* Full bidirectional async support.
+* Documentation.
+* Unit tests.
