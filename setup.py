@@ -10,7 +10,7 @@ try:
 except ImportError:
     pass
 
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
 
 
 if sys.version_info <= (2, 5):
@@ -46,7 +46,7 @@ setup(
         license = license,
         keywords = '',
         
-        install_requires = ['marrow.util'],
+        install_requires = ['marrow.util', 'marrow.server'],
         
         test_suite = 'nose.collector',
         tests_require = ['nose', 'coverage', 'nose-achievements'],
@@ -69,6 +69,12 @@ setup(
                 'docs': ['source/*']
             },
         zip_safe = True,
+        ext_modules = [
+                Extension('marrow.server.http.parser.pyhttp11', [
+                        'marrow/server/http/parser/pyhttp11.c',
+                        'marrow/server/http/parser/http11_parser.c'
+                    ])
+            ],
         
         namespace_packages = ['marrow', 'marrow.server'],
         

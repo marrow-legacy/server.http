@@ -6,7 +6,9 @@ clean:
 	rm -rvf *.egg-info
 	rm -rvf build
 	rm -rvf dist
-	find . -iname \*.pyc -or -iname \*.pyo -exec rm -vf {} \;
+	find . -iname \*.pyo -exec rm -vf {} \;
+	find . -iname \*.pyc -exec rm -vf {} \;
+	find . -iname \*.so -exec rm -vf {} \;
 	rm -rvf docs/build
 
 update:
