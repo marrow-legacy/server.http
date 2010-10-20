@@ -3,6 +3,7 @@
 *.egg-info
 *.DS_Store
 *~
+*.so
 build/
 dist/
 tests/.coverage
