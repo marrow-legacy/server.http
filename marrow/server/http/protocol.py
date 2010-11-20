@@ -17,7 +17,25 @@ __all__ = ['HTTPProtocol', 'HTTPServer']
 log = __import__('logging').getLogger(__name__)
 
 
-HTTP_INTERNAL_ERROR = "500 Internal Server Error\r\nContent-Type: text/plain\r\nContent-Length: 48\r\n\r\nThe server encountered an unrecoverable error.\r\n"
+HTTP_INTERNAL_ERROR = " 500 Internal Server Error\r\nContent-Type: text/plain\r\nContent-Length: 48\r\n\r\nThe server encountered an unrecoverable error.\r\n"
+
+
+
+# TODO: Separate out.
+
+class LoggingFile(object):
+    def __init__(self, logger=None):
+        self.logger = logger if logger else log.error
+    
+    def flush(self):
+        pass # no-op
+    
+    def write(self, text):
+        self.logger(text)
+    
+    def writelines(self, lines):
+        for line in lines:
+            self.logger(line)
 
 
 
@@ -41,7 +59,7 @@ class HTTPProtocol(Protocol):
             env['SERVER_NAME'] = server.name
             env['SERVER_PORT'] = server.address[1] if isinstance(server.address, tuple) else 80
             env['wsgi.input'] = None
-            env['wsgi.errors'] = None
+            env['wsgi.errors'] = LoggingFile()
             env['wsgi.version'] = (2, 0)
             env['wsgi.multithread'] = False
             env['wsgi.multiprocess'] = False
@@ -85,6 +103,7 @@ class HTTPProtocol(Protocol):
             environ = dict(
                     REQUEST_METHOD=line[0],
                     SCRIPT_NAME="",
+                    CONTENT_TYPE="",
                     PATH_INFO=path,
                     PARAMETERS=param,
                     QUERY_STRING=query,
@@ -110,7 +129,7 @@ class HTTPProtocol(Protocol):
                     # headers[header] += _
                     continue
                 
-                header, _, value = line.partition(':')
+                header, _, value = line.partition(': ')
                 current = header.replace('-', '_').upper()
                 if current not in noprefix: current = 'HTTP_' + current
                 environ[current] = value
@@ -145,8 +164,8 @@ class HTTPProtocol(Protocol):
             self.work()
         
         def work(self):
-            # TODO: expand with 'writer' callable to support threading efficiently.
-            # Single-threaded we can write directly to the stream.
+            # TODO: expand with 'self.writer' callable to support threading efficiently.
+            # Single-threaded we can write directly to the stream, multi-threaded we need to queue responses for the main thread to deliver.
             
             try:
                 env = self.environ
@@ -163,6 +182,9 @@ class HTTPProtocol(Protocol):
                 self.write(env['SERVER_PROTOCOL'] + HTTP_INTERNAL_ERROR, self.finish)
         
         def _write_body(self, body):
+            # TODO: expand with 'self.writer' callable to support threading efficiently.
+            # Single-threaded we can write directly to the stream, multi-threaded we need to queue responses for the main thread to deliver.
+            
             try:
                 chunk = body.next()
                 self.write(chunk, partial(self._write_body, body))
@@ -171,6 +193,9 @@ class HTTPProtocol(Protocol):
                 self.finish()
         
         def _finish(self):
+            # TODO: Pre-calculate this and pass self.client.close as the body writer callback only if we need to disconnect.
+            # TODO: Execute self.client.read_until in _write_body if we aren't disconnecting.
+            # These are to support threading, where the body writer callback is executed in the main thread.
             env = self.environ
             disconnect = True
             
