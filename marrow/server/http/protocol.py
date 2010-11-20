@@ -17,6 +17,9 @@ __all__ = ['HTTPProtocol', 'HTTPServer']
 log = __import__('logging').getLogger(__name__)
 
 
+HTTP_INTERNAL_ERROR = "500 Internal Server Error\r\nContent-Type: text/plain\r\nContent-Length: 48\r\n\r\nThe server encountered an unrecoverable error.\r\n"
+
+
 
 class HTTPProtocol(Protocol):
     def __init__(self, server, application, **options):
@@ -74,18 +77,24 @@ class HTTPProtocol(Protocol):
             """Process HTTP headers, and pull in the body as needed."""
             
             line = data[:data.index('\r\n')].split()
+            remainder, _, fragment = line[1].partition('#')
+            remainder, _, query = remainder.partition('?')
+            path, _, param = remainder.partition(';')
             
-            # TODO: Split the request path into parts.
+            headers = dict()
             environ = dict(
                     REQUEST_METHOD=line[0],
                     SCRIPT_NAME="",
-                    PATH_INFO=line[1].strip(),
-                    QUERY_STRING="",
+                    PATH_INFO=path,
+                    PARAMETERS=param,
+                    QUERY_STRING=query,
+                    FRAGMENT=fragment,
                     SERVER_PROTOCOL=line[2],
-                    CONTENT_LENGTH=None
+                    CONTENT_LENGTH=None,
+                    HEADERS=headers
                 )
             
-            current = None
+            current, header = None, None
             noprefix = dict(CONTENT_TYPE=True, CONTENT_LENGTH=True)
             
             # This is lame.
@@ -96,13 +105,16 @@ class HTTPProtocol(Protocol):
                 assert current is not None or line[0] != ' ', "%r %r" % (current, line) # TODO: Do better than dying abruptly.
                 
                 if line[0] == ' ':
-                    environ[current] += line.lstrip()
+                    _ = line.lstrip()
+                    environ[current] += _
+                    # headers[header] += _
                     continue
                 
-                current, _, value = line.partition(':')
-                current = current.replace('-', '_').upper()
+                header, _, value = line.partition(':')
+                current = header.replace('-', '_').upper()
                 if current not in noprefix: current = 'HTTP_' + current
                 environ[current] = value
+                # headers[header] = value
             
             # Proxy support.
             # for h in ("X-Real-Ip", "X-Real-IP", "X-Forwarded-For"):
@@ -127,19 +139,28 @@ class HTTPProtocol(Protocol):
             self.client.read_bytes(length, self.body)
         
         def body(self, data):
+            # TODO: Create a real file-like object.
             self.environ['wsgi.input'] = StringIO(data)
             
             self.work()
         
         def work(self):
-            env = self.environ
-            status, headers, body = self.protocol.application(env)
+            # TODO: expand with 'writer' callable to support threading efficiently.
+            # Single-threaded we can write directly to the stream.
             
-            self.write("%s %s\r\n%s\r\n\r\n" % (
-                    env['SERVER_PROTOCOL'],
-                    status,
-                    "\r\n".join([': '.join((i, j)) for i, j in headers]),
-                ), partial(self._write_body, iter(body)))
+            try:
+                env = self.environ
+                status, headers, body = self.protocol.application(env)
+            
+                self.write("%s %s\r\n%s\r\n\r\n" % (
+                        env['SERVER_PROTOCOL'],
+                        status,
+                        "\r\n".join([': '.join((i, j)) for i, j in headers]),
+                    ), partial(self._write_body, iter(body)))
+            
+            except:
+                log.exception("Unhandled application exception.")
+                self.write(env['SERVER_PROTOCOL'] + HTTP_INTERNAL_ERROR, self.finish)
         
         def _write_body(self, body):
             try:
