@@ -38,7 +38,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
     
     def hello(request):
-        request['wsgi.errors'].write("Oh noes!") # Example error, output through the logging module.  \o/
+        # request['wsgi.errors'].write("Oh noes!") # Example error, output through the logging module.  \o/
         return '200 OK', [('Content-Type', 'text/plain'), ('Content-Length', '12')], ['Hello world!']
     
-    HTTPServer(None, 8080, fork=1, application=hello).start()
+    HTTPServer(None, 8080, fork=None, application=hello).start()
