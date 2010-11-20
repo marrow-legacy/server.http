@@ -76,13 +76,11 @@ class HTTPProtocol(Protocol):
             line = data[:data.index('\r\n')].split()
             
             # TODO: Split the request path into parts.
-            headers = dict(
+            environ = dict(
                     REQUEST_METHOD=line[0],
                     SCRIPT_NAME="",
                     PATH_INFO=line[1].strip(),
                     QUERY_STRING="",
-                    SERVER_NAME="",
-                    SERVER_PORT="",
                     SERVER_PROTOCOL=line[2],
                     CONTENT_LENGTH=None
                 )
@@ -98,23 +96,23 @@ class HTTPProtocol(Protocol):
                 assert current is not None or line[0] != ' ', "%r %r" % (current, line) # TODO: Do better than dying abruptly.
                 
                 if line[0] == ' ':
-                    headers[current] += line.lstrip()
+                    environ[current] += line.lstrip()
                     continue
                 
                 current, _, value = line.partition(':')
                 current = current.replace('-', '_').upper()
                 if current not in noprefix: current = 'HTTP_' + current
-                headers[current] = value
+                environ[current] = value
             
             # Proxy support.
             # for h in ("X-Real-Ip", "X-Real-IP", "X-Forwarded-For"):
-            #     self.remote_ip = self.headers.get(h, None)
+            #     self.remote_ip = self.engiron.get(h, None)
             #     if self.remote_ip is not None:
             #         break
             
-            self.environ.update(headers)
+            self.environ.update(environ)
             
-            if not headers['CONTENT_LENGTH']:
+            if not environ['CONTENT_LENGTH']:
                 self.work()
                 return
             
@@ -123,7 +121,7 @@ class HTTPProtocol(Protocol):
             if length > self.client.max_buffer_size:
                 raise Exception("Content-Length too long.")
             
-            if headers.get("HTTP_EXPECT", None) == "100-continue":
+            if environ.get("HTTP_EXPECT", None) == "100-continue":
                 self.client.write("HTTP/1.1 100 (Continue)\r\n\r\n")
             
             self.client.read_bytes(length, self.body)

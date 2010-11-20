@@ -40,4 +40,4 @@ if __name__ == '__main__':
     def hello(request):
         return '200 OK', [('Content-Type', 'text/plain'), ('Content-Length', '12')], ['Hello world!']
     
-    HTTPServer(None, 8080, application=hello).start()
+    HTTPServer(None, 8080, fork=0, application=hello).start()
