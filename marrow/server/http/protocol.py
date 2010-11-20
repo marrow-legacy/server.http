@@ -57,12 +57,13 @@ class HTTPProtocol(Protocol):
             env = dict()
             env['REMOTE_ADDR'] = client.address[0]
             env['SERVER_NAME'] = server.name
+            env['SERVER_ADDR'] = server.address[0] if isinstance(server.address, tuple) else ''
             env['SERVER_PORT'] = server.address[1] if isinstance(server.address, tuple) else 80
             env['wsgi.input'] = None
             env['wsgi.errors'] = LoggingFile()
             env['wsgi.version'] = (2, 0)
             env['wsgi.multithread'] = False
-            env['wsgi.multiprocess'] = False
+            env['wsgi.multiprocess'] = server.fork != 1
             env['wsgi.run_once'] = False
             env['wsgi.url_scheme'] = 'http'
             
