@@ -9,7 +9,7 @@ upload-dir = docs/build/html
 [nosetests]
 quiet = true
 with-coverage = true
-cover-package = pulp.util.
+cover-package = marrow.server.http.
 cover-inclusive = true
 where = tests
 detailed-errors = true

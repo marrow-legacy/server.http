@@ -12,15 +12,10 @@ except ImportError:
 
 from marrow.server.protocol import Protocol
 
-from marrow.server.http.parser import HTTPParser
-
 
 __all__ = ['HTTPProtocol', 'HTTPServer']
 log = __import__('logging').getLogger(__name__)
 
-
-
-parser = HTTPParser()
 
 
 class HTTPProtocol(Protocol):
@@ -55,20 +50,15 @@ class HTTPProtocol(Protocol):
             self.finished = False
             self.pipeline = protocol.options.get('pipeline', True) # TODO
             
-            log.debug("Reading headers.")
             client.read_until("\r\n\r\n", self.headers)
         
         def write(self, chunk, callback=None):
             assert not self.finished, "Attempt to write to completed request."
             
-            log.debug("Writing chunk: %r", chunk)
-            
             if not self.client.closed():
                 self.client.write(chunk, callback if callback else self.written)
         
         def written(self):
-            log.debug("Wrote chunk.")
-            
             if self.finished:
                 self._finish()
         
@@ -83,37 +73,57 @@ class HTTPProtocol(Protocol):
         def headers(self, data):
             """Process HTTP headers, and pull in the body as needed."""
             
-            parser.reset()
-            parser.execute(data)
+            line = data[:data.index('\r\n')].split()
             
-            env = parser.environ
-            env.pop('REQUEST_BODY', '')
+            # TODO: Split the request path into parts.
+            headers = dict(
+                    REQUEST_METHOD=line[0],
+                    SCRIPT_NAME="",
+                    PATH_INFO=line[1].strip(),
+                    QUERY_STRING="",
+                    SERVER_NAME="",
+                    SERVER_PORT="",
+                    SERVER_PROTOCOL=line[2],
+                    CONTENT_LENGTH=None
+                )
             
-            # Normalize to all-caps, separated by underscores.
-            for key in env:
-                if key.startswith('HTTP_'):
-                    env[key.upper().replace('-', '_')] = env.pop(key)
+            current = None
+            noprefix = dict(CONTENT_TYPE=True, CONTENT_LENGTH=True)
             
-            env['SERVER_PROTOCOL'] = env.pop('HTTP_VERSION')
+            # This is lame.
+            # WSGI is, I think, badly broken by re-processing the header names.
+            # Conformance to CGI is not the pancea of compatability everyone imagined.
+            for line in data.split('\r\n')[1:]:
+                if not line: break
+                assert current is not None or line[0] != ' ', "%r %r" % (current, line) # TODO: Do better than dying abruptly.
+                
+                if line[0] == ' ':
+                    headers[current] += line.lstrip()
+                    continue
+                
+                current, _, value = line.partition(':')
+                current = current.replace('-', '_').upper()
+                if current not in noprefix: current = 'HTTP_' + current
+                headers[current] = value
             
-            # Rename HTTP_CONTENT_LENGTH and set it to None if not present.
-            length = env['CONTENT_LENGTH'] = env.pop('HTTP_CONTENT_LENGTH', None)
+            # Proxy support.
+            # for h in ("X-Real-Ip", "X-Real-IP", "X-Forwarded-For"):
+            #     self.remote_ip = self.headers.get(h, None)
+            #     if self.remote_ip is not None:
+            #         break
             
-            # Specify SCRIPT_NAME if not already present.
-            env['SCRIPT_NAME'] = env.pop('SCRIPT_NAME', '')
+            self.environ.update(headers)
             
-            self.environ.update(env)
-            
-            if not length:
+            if not headers['CONTENT_LENGTH']:
                 self.work()
                 return
             
             length = int(length)
             
-            if int(length) > self.client.max_buffer_size:
+            if length > self.client.max_buffer_size:
                 raise Exception("Content-Length too long.")
             
-            if env.get("HTTP_EXPECT", None) == "100-continue":
+            if headers.get("HTTP_EXPECT", None) == "100-continue":
                 self.client.write("HTTP/1.1 100 (Continue)\r\n\r\n")
             
             self.client.read_bytes(length, self.body)
@@ -155,11 +165,7 @@ class HTTPProtocol(Protocol):
             self.finished = False
             
             if disconnect:
-                log.debug("Disconnecting client.")
                 self.client.close()
                 return
             
-            log.debug("Pipelining next request.")
-            
             self.client.read_until("\r\n\r\n", self.headers)
-
