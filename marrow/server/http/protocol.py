@@ -58,9 +58,9 @@ class HTTPProtocol(Protocol):
             
             env = dict()
             env['REMOTE_ADDR'] = client.address[0]
-            env['SERVER_NAME'] = server.name
-            env['SERVER_ADDR'] = server.address[0] if isinstance(server.address, tuple) else ''
-            env['SERVER_PORT'] = server.address[1] if isinstance(server.address, tuple) else 80
+            env['SERVER_NAME'] = unicode(server.name).encode()
+            env['SERVER_ADDR'] = unicode(server.address[0] if isinstance(server.address, tuple) else '').encode()
+            env['SERVER_PORT'] = unicode(server.address[1] if isinstance(server.address, tuple) else 80).encode()
             env['wsgi.input'] = None
             env['wsgi.errors'] = LoggingFile()
             env['wsgi.version'] = (2, 0)
@@ -68,6 +68,14 @@ class HTTPProtocol(Protocol):
             env['wsgi.multiprocess'] = server.fork != 1
             env['wsgi.run_once'] = False
             env['wsgi.url_scheme'] = b'http'
+            
+            env['wsgi.script_name'] = b''
+            env['wsgi.path_info'] = b''
+            env['wsgi.'] = b''
+            env['wsgi.'] = b''
+            env['wsgi.'] = b''
+            env['wsgi.'] = b''
+            env['wsgi.'] = b''
             
             self.environ = env
             
@@ -106,7 +114,7 @@ class HTTPProtocol(Protocol):
             environ = dict(
                     REQUEST_METHOD=line[0],
                     SCRIPT_NAME=b"",
-                    CONTENT_TYPE=b"",
+                    CONTENT_TYPE=None,
                     PATH_INFO=path,
                     PARAMETERS=param,
                     QUERY_STRING=query,
@@ -124,7 +132,7 @@ class HTTPProtocol(Protocol):
             # Conformance to CGI is not the pancea of compatability everyone imagined.
             for line in data.split(b'\r\n')[1:]:
                 if not line: break
-                assert current is not None or line[0] != b' ', "%r %r" % (current, line) # TODO: Do better than dying abruptly.
+                assert current is not None or line[0] != b' ' # TODO: Do better than dying abruptly.
                 
                 if line[0] == b' ':
                     _ = line.lstrip()
@@ -174,10 +182,7 @@ class HTTPProtocol(Protocol):
                 env = self.environ
                 status, headers, body = self.protocol.application(env)
             
-                self.write(env['SERVER_PROTOCOL'] + b" " + \
-                        status + b"\r\n" + \
-                        b"\r\n".join([': '.join((i, j)) for i, j in headers])
-                    ), partial(self._write_body, iter(body)))
+                self.write(env['SERVER_PROTOCOL'] + b" " + status + b"\r\n" + b"\r\n".join([': '.join((i, j)) for i, j in headers]) + b"\r\n\r\n", partial(self._write_body, iter(body)))
             
             except:
                 log.exception("Unhandled application exception.")
@@ -205,7 +210,7 @@ class HTTPProtocol(Protocol):
                 if env['SERVER_PROTOCOL'] == 'HTTP/1.1':
                     disconnect = env.get('HTTP_CONNECTION', None) == b"close"
                 
-                elif env['CONTENT_LENGTH'] is not None or env['REQUEST_METHOD'] in ('HEAD', 'GET'):
+                elif env['CONTENT_LENGTH'] is not None or env['REQUEST_METHOD'] in (b'HEAD', b'GET'):
                     disconnect = env.get('HTTP_CONNECTION', None) != b'Keep-Alive'
             
             self.finished = False
