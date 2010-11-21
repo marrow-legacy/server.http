@@ -39,6 +39,6 @@ if __name__ == '__main__':
     
     def hello(request):
         # request['wsgi.errors'].write("Oh noes!") # Example error, output through the logging module.  \o/
-        return '200 OK', [('Content-Type', 'text/plain'), ('Content-Length', '12')], ['Hello world!']
+        return b'200 OK', [(b'Content-Type', b'text/plain'), (b'Content-Length', b'12')], [b'Hello world!']
     
     HTTPServer(None, 8080, fork=None, application=hello).start()

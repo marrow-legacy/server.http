@@ -12,12 +12,14 @@ except ImportError:
 
 from marrow.server.protocol import Protocol
 
+from marrow.util.compat import binary, unicode
+
 
 __all__ = ['HTTPProtocol', 'HTTPServer']
 log = __import__('logging').getLogger(__name__)
 
 
-HTTP_INTERNAL_ERROR = " 500 Internal Server Error\r\nContent-Type: text/plain\r\nContent-Length: 48\r\n\r\nThe server encountered an unrecoverable error.\r\n"
+HTTP_INTERNAL_ERROR = b" 500 Internal Server Error\r\nContent-Type: text/plain\r\nContent-Length: 48\r\n\r\nThe server encountered an unrecoverable error.\r\n"
 
 
 
@@ -65,14 +67,14 @@ class HTTPProtocol(Protocol):
             env['wsgi.multithread'] = False
             env['wsgi.multiprocess'] = server.fork != 1
             env['wsgi.run_once'] = False
-            env['wsgi.url_scheme'] = 'http'
+            env['wsgi.url_scheme'] = b'http'
             
             self.environ = env
             
             self.finished = False
             self.pipeline = protocol.options.get('pipeline', True) # TODO
             
-            client.read_until("\r\n\r\n", self.headers)
+            client.read_until(b"\r\n\r\n", self.headers)
         
         def write(self, chunk, callback=None):
             assert not self.finished, "Attempt to write to completed request."
@@ -95,16 +97,16 @@ class HTTPProtocol(Protocol):
         def headers(self, data):
             """Process HTTP headers, and pull in the body as needed."""
             
-            line = data[:data.index('\r\n')].split()
-            remainder, _, fragment = line[1].partition('#')
-            remainder, _, query = remainder.partition('?')
-            path, _, param = remainder.partition(';')
+            line = data[:data.index(b'\r\n')].split()
+            remainder, _, fragment = line[1].partition(b'#')
+            remainder, _, query = remainder.partition(b'?')
+            path, _, param = remainder.partition(b';')
             
             headers = dict()
             environ = dict(
                     REQUEST_METHOD=line[0],
-                    SCRIPT_NAME="",
-                    CONTENT_TYPE="",
+                    SCRIPT_NAME=b"",
+                    CONTENT_TYPE=b"",
                     PATH_INFO=path,
                     PARAMETERS=param,
                     QUERY_STRING=query,
@@ -120,18 +122,18 @@ class HTTPProtocol(Protocol):
             # This is lame.
             # WSGI is, I think, badly broken by re-processing the header names.
             # Conformance to CGI is not the pancea of compatability everyone imagined.
-            for line in data.split('\r\n')[1:]:
+            for line in data.split(b'\r\n')[1:]:
                 if not line: break
-                assert current is not None or line[0] != ' ', "%r %r" % (current, line) # TODO: Do better than dying abruptly.
+                assert current is not None or line[0] != b' ', "%r %r" % (current, line) # TODO: Do better than dying abruptly.
                 
-                if line[0] == ' ':
+                if line[0] == b' ':
                     _ = line.lstrip()
                     environ[current] += _
                     # headers[header] += _
                     continue
                 
-                header, _, value = line.partition(': ')
-                current = header.replace('-', '_').upper()
+                header, _, value = line.partition(b': ')
+                current = unicode(header.replace(b'-', b'_')).upper()
                 if current not in noprefix: current = 'HTTP_' + current
                 environ[current] = value
                 # headers[header] = value
@@ -153,8 +155,8 @@ class HTTPProtocol(Protocol):
             if length > self.client.max_buffer_size:
                 raise Exception("Content-Length too long.")
             
-            if environ.get("HTTP_EXPECT", None) == "100-continue":
-                self.client.write("HTTP/1.1 100 (Continue)\r\n\r\n")
+            if environ.get("HTTP_EXPECT", None) == b"100-continue":
+                self.client.write(b"HTTP/1.1 100 (Continue)\r\n\r\n")
             
             self.client.read_bytes(length, self.body)
         
@@ -172,10 +174,9 @@ class HTTPProtocol(Protocol):
                 env = self.environ
                 status, headers, body = self.protocol.application(env)
             
-                self.write("%s %s\r\n%s\r\n\r\n" % (
-                        env['SERVER_PROTOCOL'],
-                        status,
-                        "\r\n".join([': '.join((i, j)) for i, j in headers]),
+                self.write(env['SERVER_PROTOCOL'] + b" " + \
+                        status + b"\r\n" + \
+                        b"\r\n".join([': '.join((i, j)) for i, j in headers])
                     ), partial(self._write_body, iter(body)))
             
             except:
@@ -202,10 +203,10 @@ class HTTPProtocol(Protocol):
             
             if self.pipeline:
                 if env['SERVER_PROTOCOL'] == 'HTTP/1.1':
-                    disconnect = env.get('HTTP_CONNECTION', None) == "close"
+                    disconnect = env.get('HTTP_CONNECTION', None) == b"close"
                 
                 elif env['CONTENT_LENGTH'] is not None or env['REQUEST_METHOD'] in ('HEAD', 'GET'):
-                    disconnect = env.get('HTTP_CONNECTION', None) != 'Keep-Alive'
+                    disconnect = env.get('HTTP_CONNECTION', None) != b'Keep-Alive'
             
             self.finished = False
             
@@ -213,4 +214,4 @@ class HTTPProtocol(Protocol):
                 self.client.close()
                 return
             
-            self.client.read_until("\r\n\r\n", self.headers)
+            self.client.read_until(b"\r\n\r\n", self.headers)
