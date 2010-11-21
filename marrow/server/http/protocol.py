@@ -184,12 +184,18 @@ class HTTPProtocol(Protocol):
                 env = self.environ
                 
                 for filter_ in self.protocol.ingress:
-                    env = filter_(env)
+                    result = filter_(env)
+                    
+                    # allow the filter to return a response rather than continuing
+                    if result:
+                        status, headers, body = result
+                        self.write(env['SERVER_PROTOCOL'] + b" " + status + b"\r\n" + b"\r\n".join([(i + b': ' + j) for i, j in headers]) + b"\r\n\r\n", partial(self._write_body, iter(body)))
+                        return
                 
                 status, headers, body = self.protocol.application(env)
                 
                 for filter_ in self.protocol.egress:
-                    status, headers, body = filter_(status, headers, body)
+                    status, headers, body = filter_(env, status, headers, body)
                 
                 self.write(env['SERVER_PROTOCOL'] + b" " + status + b"\r\n" + b"\r\n".join([(i + b': ' + j) for i, j in headers]) + b"\r\n\r\n", partial(self._write_body, iter(body)))
             
