@@ -42,10 +42,12 @@ class LoggingFile(object):
 
 
 class HTTPProtocol(Protocol):
-    def __init__(self, server, application, **options):
+    def __init__(self, server, application, ingress=None, egress=None, **options):
         super(HTTPProtocol, self).__init__(server, **options)
         
         self.application = application
+        self.ingress = ingress if ingress else []
+        self.egress = egress if egress else []
     
     def accept(self, client):
         self.Connection(self.server, self, client)
@@ -180,9 +182,16 @@ class HTTPProtocol(Protocol):
             
             try:
                 env = self.environ
+                
+                for filter_ in self.protocol.ingress:
+                    env = filter_(env)
+                
                 status, headers, body = self.protocol.application(env)
-            
-                self.write(env['SERVER_PROTOCOL'] + b" " + status + b"\r\n" + b"\r\n".join([': '.join((i, j)) for i, j in headers]) + b"\r\n\r\n", partial(self._write_body, iter(body)))
+                
+                for filter_ in self.protocol.egress:
+                    status, headers, body = filter_(status, headers, body)
+                
+                self.write(env['SERVER_PROTOCOL'] + b" " + status + b"\r\n" + b"\r\n".join([(i + b': ' + j) for i, j in headers]) + b"\r\n\r\n", partial(self._write_body, iter(body)))
             
             except:
                 log.exception("Unhandled application exception.")
