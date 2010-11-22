@@ -13,7 +13,6 @@ cover-package = marrow.server.http.
 cover-inclusive = true
 where = tests
 detailed-errors = true
-with-achievements = true
 
 [aliases]
 test = nosetests
