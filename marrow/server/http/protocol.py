@@ -66,9 +66,9 @@ class HTTPProtocol(Protocol):
             env = dict()
             env['REMOTE_ADDR'] = client.address[0]
             
-            env['SERVER_NAME'] = server._name
-            env['SERVER_ADDR'] = server._addr
-            env['SERVER_PORT'] = server._port
+            env['SERVER_NAME'] = protocol._name
+            env['SERVER_ADDR'] = protocol._addr
+            env['SERVER_PORT'] = protocol._port
             
             env['wsgi.input'] = None
             env['wsgi.errors'] = LoggingFile()
