@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+import sys
 import cgi
 
 from functools import partial
@@ -42,6 +43,16 @@ class HTTPProtocol(Protocol):
         self.application = application
         self.ingress = ingress if ingress else []
         self.egress = egress if egress else []
+        
+        if sys.version_info < (3, 0):
+            env['SERVER_NAME'] = server.name
+            env['SERVER_ADDR'] = server.address[0] if isinstance(server.address, tuple) else b''
+            env['SERVER_PORT'] = server.address[1] if isinstance(server.address, tuple) else 80
+        
+        else:
+            env['SERVER_NAME'] = server.name.encode()
+            env['SERVER_ADDR'] = (server.address[0] if isinstance(server.address, tuple) else b'').encode()
+            env['SERVER_PORT'] = (server.address[1] if isinstance(server.address, tuple) else b'80').encode()
     
     def accept(self, client):
         self.Connection(self.server, self, client)
@@ -54,9 +65,11 @@ class HTTPProtocol(Protocol):
             
             env = dict()
             env['REMOTE_ADDR'] = client.address[0]
-            env['SERVER_NAME'] = unicode(server.name, 'ascii').encode()
-            env['SERVER_ADDR'] = unicode(server.address[0] if isinstance(server.address, tuple) else '', 'ascii').encode()
-            env['SERVER_PORT'] = unicode(server.address[1] if isinstance(server.address, tuple) else 80, 'ascii').encode()
+            
+            env['SERVER_NAME'] = server._name
+            env['SERVER_ADDR'] = server._addr
+            env['SERVER_PORT'] = server._port
+            
             env['wsgi.input'] = None
             env['wsgi.errors'] = LoggingFile()
             env['wsgi.version'] = (2, 0)
@@ -65,13 +78,8 @@ class HTTPProtocol(Protocol):
             env['wsgi.run_once'] = False
             env['wsgi.url_scheme'] = b'http'
             
-            env['wsgi.script_name'] = b''
-            env['wsgi.path_info'] = b''
-            env['wsgi.'] = b''
-            env['wsgi.'] = b''
-            env['wsgi.'] = b''
-            env['wsgi.'] = b''
-            env['wsgi.'] = b''
+            # env['wsgi.script_name'] = b''
+            # env['wsgi.path_info'] = b''
             
             self.environ = env
             
