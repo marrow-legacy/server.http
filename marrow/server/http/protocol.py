@@ -47,12 +47,12 @@ class HTTPProtocol(Protocol):
         if sys.version_info < (3, 0):
             self._name = server.name
             self._addr = server.address[0] if isinstance(server.address, tuple) else b''
-            self._port = server.address[1] if isinstance(server.address, tuple) else 80
+            self._port = str(server.address[1]) if isinstance(server.address, tuple) else b'80'
         
         else:
             self._name = server.name.encode()
             self._addr = (server.address[0] if isinstance(server.address, tuple) else b'').encode()
-            self._port = (server.address[1] if isinstance(server.address, tuple) else b'80').encode()
+            self._port = (str(server.address[1]) if isinstance(server.address, tuple) else b'80').encode()
     
     def accept(self, client):
         self.Connection(self.server, self, client)
