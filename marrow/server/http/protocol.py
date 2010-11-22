@@ -4,15 +4,9 @@ import cgi
 
 from functools import partial
 
-try:
-    from cStringIO import StringIO
-
-except ImportError:
-    from cStringIO import StringIO
-
 from marrow.server.protocol import Protocol
 
-from marrow.util.compat import binary, unicode
+from marrow.util.compat import binary, unicode, IO
 
 
 __all__ = ['HTTPProtocol', 'HTTPServer']
@@ -172,7 +166,7 @@ class HTTPProtocol(Protocol):
         
         def body(self, data):
             # TODO: Create a real file-like object.
-            self.environ['wsgi.input'] = StringIO(data)
+            self.environ['wsgi.input'] = IO(data)
             
             self.work()
         
