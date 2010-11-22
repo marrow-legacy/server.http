@@ -45,14 +45,14 @@ class HTTPProtocol(Protocol):
         self.egress = egress if egress else []
         
         if sys.version_info < (3, 0):
-            env['SERVER_NAME'] = server.name
-            env['SERVER_ADDR'] = server.address[0] if isinstance(server.address, tuple) else b''
-            env['SERVER_PORT'] = server.address[1] if isinstance(server.address, tuple) else 80
+            self._name = server.name
+            self._addr = server.address[0] if isinstance(server.address, tuple) else b''
+            self._port = server.address[1] if isinstance(server.address, tuple) else 80
         
         else:
-            env['SERVER_NAME'] = server.name.encode()
-            env['SERVER_ADDR'] = (server.address[0] if isinstance(server.address, tuple) else b'').encode()
-            env['SERVER_PORT'] = (server.address[1] if isinstance(server.address, tuple) else b'80').encode()
+            self._name = server.name.encode()
+            self._addr = (server.address[0] if isinstance(server.address, tuple) else b'').encode()
+            self._port = (server.address[1] if isinstance(server.address, tuple) else b'80').encode()
     
     def accept(self, client):
         self.Connection(self.server, self, client)
