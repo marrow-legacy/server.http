@@ -202,7 +202,7 @@ class HTTPProtocol(Protocol):
             # Single-threaded we can write directly to the stream, multi-threaded we need to queue responses for the main thread to deliver.
             
             try:
-                chunk = body.next()
+                chunk = next(body)
                 self.write(chunk, partial(self._write_body, body))
             
             except StopIteration:
