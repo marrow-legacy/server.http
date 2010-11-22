@@ -4,14 +4,14 @@
 
 
 name = "marrow.server.http"
-version = "0.0.1"
-release = "0.0.1"
+version = "0.8"
+release = "0.8"
 
-summary = "A powerful HTTP/1.1 server for WSGI applications in both Python 2.x and 3.x."
+summary = "A powerful HTTP/1.1 server for WSGI 2 applications in both Python 2.x and 3.x."
 description = """"""
 author = "Alice Bevan-McGregor"
 email = "alice@gothcandy.com"
 url = "http://github.com/pulp/marrow.server.http"
-download_url = "http://github.com/pulp/marrow.server.http/downloads"
+download_url = "http://pypi.python.org/pypi/marrow.server.http/"
 copyright = "2010, Alice Bevan-McGregor"
 license = "MIT"
