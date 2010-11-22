@@ -54,9 +54,9 @@ class HTTPProtocol(Protocol):
             
             env = dict()
             env['REMOTE_ADDR'] = client.address[0]
-            env['SERVER_NAME'] = unicode(server.name).encode()
-            env['SERVER_ADDR'] = unicode(server.address[0] if isinstance(server.address, tuple) else '').encode()
-            env['SERVER_PORT'] = unicode(server.address[1] if isinstance(server.address, tuple) else 80).encode()
+            env['SERVER_NAME'] = unicode(server.name, 'ascii').encode()
+            env['SERVER_ADDR'] = unicode(server.address[0] if isinstance(server.address, tuple) else '', 'ascii').encode()
+            env['SERVER_PORT'] = unicode(server.address[1] if isinstance(server.address, tuple) else 80, 'ascii').encode()
             env['wsgi.input'] = None
             env['wsgi.errors'] = LoggingFile()
             env['wsgi.version'] = (2, 0)
@@ -137,7 +137,7 @@ class HTTPProtocol(Protocol):
                     continue
                 
                 header, _, value = line.partition(b': ')
-                current = unicode(header.replace(b'-', b'_')).upper()
+                current = unicode(header.replace(b'-', b'_'), 'ascii').upper()
                 if current not in noprefix: current = 'HTTP_' + current
                 environ[current] = value
                 # headers[header] = value
