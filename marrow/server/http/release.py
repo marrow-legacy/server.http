@@ -4,8 +4,8 @@
 
 
 name = "marrow.server.http"
-version = "0.8"
-release = "0.8"
+version = "0.9"
+release = "0.9"
 
 summary = "A powerful HTTP/1.1 server for WSGI 2 applications in both Python 2.x and 3.x."
 description = """"""
