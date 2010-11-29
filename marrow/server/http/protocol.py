@@ -215,37 +215,37 @@ class HTTPProtocol(Protocol):
                 if chunked:
                     headers.append((b"Transfer-Encoding", b"chunked"))
                     headers = env['SERVER_PROTOCOL'] + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + CRLF + CRLF
-                    self.write(headers, partial(self._write_body_chunked, iter(body)))
+                    self.write(headers, partial(self.write_body_chunked, iter(body)))
                     return
                 
                 headers = env['SERVER_PROTOCOL'] + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + CRLF + CRLF
                 
-                self.write(headers, partial(self._write_body, iter(body)))
+                self.write(headers, partial(self.write_body, iter(body)))
             
             except:
                 log.exception("Unhandled application exception.")
                 self.write(env['SERVER_PROTOCOL'] + HTTP_INTERNAL_ERROR, self.finish)
         
-        def _write_body(self, body):
+        def write_body(self, body):
             try:
                 chunk = next(body)
-                self.write(chunk, partial(self._write_body, body))
+                self.write(chunk, partial(self.write_body, body))
             
             except StopIteration:
                 self.finish()
         
-        def _write_body_chunked(self, body):
+        def write_body_chunked(self, body):
             try:
                 chunk = next(body)
                 chunk = unicode(hex(len(chunk)))[2:].encode('ascii') + CRLF + chunk + CRLF
-                self.write(chunk, partial(self._write_body_chunked, body))
+                self.write(chunk, partial(self.write_body_chunked, body))
             
             except StopIteration:
                 self.write(b"0" + CRLF + CRLF, self.finish)
         
         def _finish(self):
             # TODO: Pre-calculate this and pass self.client.close as the body writer callback only if we need to disconnect.
-            # TODO: Execute self.client.read_until in _write_body if we aren't disconnecting.
+            # TODO: Execute self.client.read_until in write_body if we aren't disconnecting.
             # These are to support threading, where the body writer callback is executed in the main thread.
             env = self.environ
             disconnect = True
