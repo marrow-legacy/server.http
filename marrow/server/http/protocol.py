@@ -211,8 +211,7 @@ class HTTPProtocol(Protocol):
                 for filter_ in self.protocol.egress:
                     status, headers, body = filter_(env, status, headers, body)
                 
-                chunked = env['SERVER_PROTOCOL'] == b"HTTP/1.1" and 'content-length' not in [i[0].lower() for i in headers]
-                if chunked:
+                if env['SERVER_PROTOCOL'] == b"HTTP/1.1" and 'content-length' not in [i[0].lower() for i in headers]:
                     headers.append((b"Transfer-Encoding", b"chunked"))
                     headers = env['SERVER_PROTOCOL'] + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + CRLF + CRLF
                     self.write(headers, partial(self.write_body_chunked, iter(body)))
