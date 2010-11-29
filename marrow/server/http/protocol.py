@@ -14,7 +14,9 @@ __all__ = ['HTTPProtocol', 'HTTPServer']
 log = __import__('logging').getLogger(__name__)
 
 
+CRLF = b"\r\n\r\n"
 HTTP_INTERNAL_ERROR = b" 500 Internal Server Error\r\nContent-Type: text/plain\r\nContent-Length: 48\r\n\r\nThe server encountered an unrecoverable error.\r\n"
+
 
 
 
@@ -73,7 +75,7 @@ class HTTPProtocol(Protocol):
             env['wsgi.input'] = None
             env['wsgi.errors'] = LoggingFile()
             env['wsgi.version'] = (2, 0)
-            env['wsgi.multithread'] = False
+            env['wsgi.multithread'] = server.threaded
             env['wsgi.multiprocess'] = server.fork != 1
             env['wsgi.run_once'] = False
             env['wsgi.url_scheme'] = b'http'
@@ -86,7 +88,7 @@ class HTTPProtocol(Protocol):
             self.finished = False
             self.pipeline = protocol.options.get('pipeline', True) # TODO
             
-            client.read_until(b"\r\n\r\n", self.headers)
+            client.read_until(CRLF + CRLF, self.headers)
         
         def write(self, chunk, callback=None):
             assert not self.finished, "Attempt to write to completed request."
@@ -109,7 +111,7 @@ class HTTPProtocol(Protocol):
         def headers(self, data):
             """Process HTTP headers, and pull in the body as needed."""
             
-            line = data[:data.index(b'\r\n')].split()
+            line = data[:data.index(CRLF)].split()
             remainder, _, fragment = line[1].partition(b'#')
             remainder, _, query = remainder.partition(b'?')
             path, _, param = remainder.partition(b';')
@@ -134,7 +136,7 @@ class HTTPProtocol(Protocol):
             # This is lame.
             # WSGI is, I think, badly broken by re-processing the header names.
             # Conformance to CGI is not the pancea of compatability everyone imagined.
-            for line in data.split(b'\r\n')[1:]:
+            for line in data.split(CRLF)[1:]:
                 if not line: break
                 assert current is not None or line[0] != b' ' # TODO: Do better than dying abruptly.
                 
@@ -191,7 +193,7 @@ class HTTPProtocol(Protocol):
                     # allow the filter to return a response rather than continuing
                     if result:
                         status, headers, body = result
-                        self.write(env['SERVER_PROTOCOL'] + b" " + status + b"\r\n" + b"\r\n".join([(i + b': ' + j) for i, j in headers]) + b"\r\n\r\n", partial(self._write_body, iter(body)))
+                        self.write(env['SERVER_PROTOCOL'] + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + CRLF + CRLF, partial(self._write_body, iter(body)))
                         return
                 
                 status, headers, body = self.protocol.application(env)
@@ -199,7 +201,7 @@ class HTTPProtocol(Protocol):
                 for filter_ in self.protocol.egress:
                     status, headers, body = filter_(env, status, headers, body)
                 
-                self.write(env['SERVER_PROTOCOL'] + b" " + status + b"\r\n" + b"\r\n".join([(i + b': ' + j) for i, j in headers]) + b"\r\n\r\n", partial(self._write_body, iter(body)))
+                self.write(env['SERVER_PROTOCOL'] + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + CRLF + CRLF, partial(self._write_body, iter(body)))
             
             except:
                 log.exception("Unhandled application exception.")
@@ -236,4 +238,4 @@ class HTTPProtocol(Protocol):
                 self.client.close()
                 return
             
-            self.client.read_until(b"\r\n\r\n", self.headers)
+            self.client.read_until(CRLF + CRLF, self.headers)
