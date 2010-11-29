@@ -1,5 +1,7 @@
 # encoding: utf-8
 
+from __future__ import unicode_literals
+
 import sys
 import cgi
 
@@ -14,13 +16,13 @@ __all__ = ['HTTPProtocol', 'HTTPServer']
 log = __import__('logging').getLogger(__name__)
 
 
-CRLF = b"\r\n\r\n"
+CRLF = b"\r\n"
 HTTP_INTERNAL_ERROR = b" 500 Internal Server Error\r\nContent-Type: text/plain\r\nContent-Length: 48\r\n\r\nThe server encountered an unrecoverable error.\r\n"
 
 
 
 
-# TODO: Separate out.
+# TODO: Separate out into marrow.util.
 
 class LoggingFile(object):
     def __init__(self, logger=None):
@@ -67,12 +69,11 @@ class HTTPProtocol(Protocol):
             
             env = dict()
             env['REMOTE_ADDR'] = client.address[0]
-            
             env['SERVER_NAME'] = protocol._name
             env['SERVER_ADDR'] = protocol._addr
             env['SERVER_PORT'] = protocol._port
             
-            env['wsgi.input'] = None
+            env['wsgi.input'] = IO()
             env['wsgi.errors'] = LoggingFile()
             env['wsgi.version'] = (2, 0)
             env['wsgi.multithread'] = server.threaded
@@ -83,7 +84,8 @@ class HTTPProtocol(Protocol):
             # env['wsgi.script_name'] = b''
             # env['wsgi.path_info'] = b''
             
-            self.environ = env
+            self.environ = None
+            self.environ_template = env
             
             self.finished = False
             self.pipeline = protocol.options.get('pipeline', True) # TODO
@@ -116,26 +118,23 @@ class HTTPProtocol(Protocol):
             remainder, _, query = remainder.partition(b'?')
             path, _, param = remainder.partition(b';')
             
-            headers = dict()
-            environ = dict(
-                    REQUEST_METHOD=line[0],
-                    SCRIPT_NAME=b"",
-                    CONTENT_TYPE=None,
-                    PATH_INFO=path,
-                    PARAMETERS=param,
-                    QUERY_STRING=query,
-                    FRAGMENT=fragment,
-                    SERVER_PROTOCOL=line[2],
-                    CONTENT_LENGTH=None,
-                    HEADERS=headers
-                )
+            self.environ = environ = dict(self.environ_template)
+            
+            environ['REQUEST_METHOD'] = line[0]
+            environ['SCRIPT_NAME'] = b""
+            environ['CONTENT_TYPE'] = None
+            environ['PATH_INFO'] = path
+            environ['PARAMETERS'] = param
+            environ['QUERY_STRING'] = query
+            environ['FRAGMENT'] = fragment
+            environ['SERVER_PROTOCOL'] = line[2]
+            environ['CONTENT_LENGTH'] = None
+            
+            log.warn("Here: %r", environ)
             
             current, header = None, None
             noprefix = dict(CONTENT_TYPE=True, CONTENT_LENGTH=True)
             
-            # This is lame.
-            # WSGI is, I think, badly broken by re-processing the header names.
-            # Conformance to CGI is not the pancea of compatability everyone imagined.
             for line in data.split(CRLF)[1:]:
                 if not line: break
                 assert current is not None or line[0] != b' ' # TODO: Do better than dying abruptly.
@@ -143,14 +142,12 @@ class HTTPProtocol(Protocol):
                 if line[0] == b' ':
                     _ = line.lstrip()
                     environ[current] += _
-                    # headers[header] += _
                     continue
                 
                 header, _, value = line.partition(b': ')
                 current = unicode(header.replace(b'-', b'_'), 'ascii').upper()
                 if current not in noprefix: current = 'HTTP_' + current
                 environ[current] = value
-                # headers[header] = value
             
             # Proxy support.
             # for h in ("X-Real-Ip", "X-Real-IP", "X-Forwarded-For"):
@@ -158,9 +155,15 @@ class HTTPProtocol(Protocol):
             #     if self.remote_ip is not None:
             #         break
             
-            self.environ.update(environ)
+            if environ.get("HTTP_EXPECT", None) == b"100-continue":
+                self.client.write(b"HTTP/1.1 100 (Continue)\r\n\r\n")
             
-            if not environ['CONTENT_LENGTH']:
+            if environ['CONTENT_LENGTH'] is None:
+                if environ.get('HTTP_TRANSFER_ENCODING', b'').lower() == b'chunked':
+                    log.warn("HERE")
+                    self.client.read_until(CRLF, self.body_chunked)
+                    return
+                
                 self.work()
                 return
             
@@ -169,15 +172,28 @@ class HTTPProtocol(Protocol):
             if length > self.client.max_buffer_size:
                 raise Exception("Content-Length too long.")
             
-            if environ.get("HTTP_EXPECT", None) == b"100-continue":
-                self.client.write(b"HTTP/1.1 100 (Continue)\r\n\r\n")
-            
             self.client.read_bytes(length, self.body)
         
         def body(self, data):
-            # TODO: Create a real file-like object.
             self.environ['wsgi.input'] = IO(data)
             
+            self.work()
+        
+        def body_chunked(self, data):
+            length = data.strip(CRLF).split(';')[0]
+            
+            if length == b'0':
+                self.client.read_until(CRLF, self.body_trailers)
+                return
+            
+            self.client.read_bytes(int(length, 16) + 2, self.body_chunk)
+        
+        def body_chunk(self, data):
+            self.environ['wsgi.input'].write(data[:-2])
+            self.client.read_until(CRLF, self.body_chunked)
+        
+        def body_trailers(self, data):
+            # TODO: Update headers with additional headers.
             self.work()
         
         def work(self):
@@ -188,35 +204,44 @@ class HTTPProtocol(Protocol):
                 env = self.environ
                 
                 for filter_ in self.protocol.ingress:
-                    result = filter_(env)
-                    
-                    # allow the filter to return a response rather than continuing
-                    if result:
-                        status, headers, body = result
-                        self.write(env['SERVER_PROTOCOL'] + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + CRLF + CRLF, partial(self._write_body, iter(body)))
-                        return
+                    filter_(env)
                 
                 status, headers, body = self.protocol.application(env)
                 
                 for filter_ in self.protocol.egress:
                     status, headers, body = filter_(env, status, headers, body)
                 
-                self.write(env['SERVER_PROTOCOL'] + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + CRLF + CRLF, partial(self._write_body, iter(body)))
+                chunked = env['SERVER_PROTOCOL'] == b"HTTP/1.1" and 'content-length' not in [i[0].lower() for i in headers]
+                if chunked:
+                    headers.append((b"Transfer-Encoding", b"chunked"))
+                    headers = env['SERVER_PROTOCOL'] + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + CRLF + CRLF
+                    self.write(headers, partial(self._write_body_chunked, iter(body)))
+                    return
+                
+                headers = env['SERVER_PROTOCOL'] + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + CRLF + CRLF
+                
+                self.write(headers, partial(self._write_body, iter(body)))
             
             except:
                 log.exception("Unhandled application exception.")
                 self.write(env['SERVER_PROTOCOL'] + HTTP_INTERNAL_ERROR, self.finish)
         
         def _write_body(self, body):
-            # TODO: expand with 'self.writer' callable to support threading efficiently.
-            # Single-threaded we can write directly to the stream, multi-threaded we need to queue responses for the main thread to deliver.
-            
             try:
                 chunk = next(body)
                 self.write(chunk, partial(self._write_body, body))
             
             except StopIteration:
                 self.finish()
+        
+        def _write_body_chunked(self, body):
+            try:
+                chunk = next(body)
+                chunk = unicode(hex(len(chunk)))[2:].encode('ascii') + CRLF + chunk + CRLF
+                self.write(chunk, partial(self._write_body_chunked, body))
+            
+            except StopIteration:
+                self.write(b"0" + CRLF + CRLF, self.finish)
         
         def _finish(self):
             # TODO: Pre-calculate this and pass self.client.close as the body writer callback only if we need to disconnect.
