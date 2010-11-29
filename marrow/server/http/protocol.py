@@ -76,7 +76,7 @@ class HTTPProtocol(Protocol):
             env['wsgi.input'] = IO()
             env['wsgi.errors'] = LoggingFile()
             env['wsgi.version'] = (2, 0)
-            env['wsgi.multithread'] = server.threaded
+            env['wsgi.multithread'] = getattr(server, 'threaded', False) # Temporary hack until marrow.server 1.0 release.
             env['wsgi.multiprocess'] = server.fork != 1
             env['wsgi.run_once'] = False
             env['wsgi.url_scheme'] = b'http'
