@@ -23,12 +23,11 @@ HTTP_INTERNAL_ERROR = b" 500 Internal Server Error\r\nContent-Type: text/plain\r
 
 
 # TODO: Separate out into marrow.util.
-
-class LoggingFile(object):
+class LoggingFile(object): # pragma: no cover
     def __init__(self, logger=None):
         self.logger = logger if logger else log.error
     
-    def flush(self):
+    def flush(self): 
         pass # no-op
     
     def write(self, text):
@@ -41,8 +40,8 @@ class LoggingFile(object):
 
 
 class HTTPProtocol(Protocol):
-    def __init__(self, server, application, ingress=None, egress=None, **options):
-        super(HTTPProtocol, self).__init__(server, **options)
+    def __init__(self, server, testing, application, ingress=None, egress=None, **options):
+        super(HTTPProtocol, self).__init__(server, testing, **options)
         
         self.application = application
         self.ingress = ingress if ingress else []
@@ -129,8 +128,6 @@ class HTTPProtocol(Protocol):
             environ['FRAGMENT'] = fragment
             environ['SERVER_PROTOCOL'] = line[2]
             environ['CONTENT_LENGTH'] = None
-            
-            log.warn("Here: %r", environ)
             
             current, header = None, None
             noprefix = dict(CONTENT_TYPE=True, CONTENT_LENGTH=True)
@@ -254,9 +251,11 @@ class HTTPProtocol(Protocol):
                     disconnect = env.get('HTTP_CONNECTION', None) == b"close"
                 
                 elif env['CONTENT_LENGTH'] is not None or env['REQUEST_METHOD'] in (b'HEAD', b'GET'):
-                    disconnect = env.get('HTTP_CONNECTION', None) != b'Keep-Alive'
+                    disconnect = env.get('HTTP_CONNECTION', b'').lower() != b'keep-alive'
             
             self.finished = False
+            
+            log.debug("Disconnect client? %r", disconnect)
             
             if disconnect:
                 self.client.close()
