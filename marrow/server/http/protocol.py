@@ -95,11 +95,7 @@ class HTTPProtocol(Protocol):
             assert not self.finished, "Attempt to write to completed request."
             
             if not self.client.closed():
-                self.client.write(chunk, callback if callback else self.written)
-        
-        def written(self):
-            if self.finished:
-                self._finish()
+                self.client.write(chunk, callback)
         
         def finish(self):
             assert not self.finished, "Attempt complete an already completed request."
@@ -112,12 +108,22 @@ class HTTPProtocol(Protocol):
         def headers(self, data):
             """Process HTTP headers, and pull in the body as needed."""
             
+            log.debug("Recieved: %r", data)
+            
             line = data[:data.index(CRLF)].split()
             remainder, _, fragment = line[1].partition(b'#')
             remainder, _, query = remainder.partition(b'?')
             path, _, param = remainder.partition(b';')
             
             self.environ = environ = dict(self.environ_template)
+            
+            if b"://" in path:
+                scheme, _, path = path.partition(b'://')
+                host, _, path = path.partition(b'/')
+                path = b'/' + path
+                
+                environ['wsgi.url_scheme'] = scheme
+                environ['HTTP_HOST'] = host
             
             environ['REQUEST_METHOD'] = line[0]
             environ['SCRIPT_NAME'] = b""
@@ -157,14 +163,13 @@ class HTTPProtocol(Protocol):
             
             if environ['CONTENT_LENGTH'] is None:
                 if environ.get('HTTP_TRANSFER_ENCODING', b'').lower() == b'chunked':
-                    log.warn("HERE")
                     self.client.read_until(CRLF, self.body_chunked)
                     return
                 
                 self.work()
                 return
             
-            length = int(length)
+            length = int(environ['CONTENT_LENGTH'])
             
             if length > self.client.max_buffer_size:
                 raise Exception("Content-Length too long.")
@@ -172,11 +177,13 @@ class HTTPProtocol(Protocol):
             self.client.read_bytes(length, self.body)
         
         def body(self, data):
+            log.debug("Recieved body: %r", data)
             self.environ['wsgi.input'] = IO(data)
             
             self.work()
         
         def body_chunked(self, data):
+            log.debug("Recieved chunk header: %r", data)
             length = data.strip(CRLF).split(';')[0]
             
             if length == b'0':
@@ -186,10 +193,13 @@ class HTTPProtocol(Protocol):
             self.client.read_bytes(int(length, 16) + 2, self.body_chunk)
         
         def body_chunk(self, data):
+            log.debug("Recieved chunk: %r", data)
             self.environ['wsgi.input'].write(data[:-2])
             self.client.read_until(CRLF, self.body_chunked)
         
         def body_trailers(self, data):
+            log.debug("Recieved chunk trailers: %r", data)
+            self.environ['wsgi.input'].seek(0)
             # TODO: Update headers with additional headers.
             self.work()
         

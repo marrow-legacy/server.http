@@ -56,13 +56,25 @@ class HTTPTestCase(ServerTestCase):
         
         length_found = False
         for name, value in headers:
-            if name.lower == b"content-length": length_found = True
+            if name.lower() == b"content-length": length_found = True
             request += CRLF + name + b": " + value
+        
+        if method not in [b"GET", b"HEAD"] and body and not length_found:
+            request += CRLF + b"Transfer-Encoding: chunked"
         
         self.client.write(request + EOH)
         
-        if body:
-            pass
+        if method not in [b"GET", b"HEAD"] and body:
+            if length_found:
+                for i in body:
+                    self.client.write(i)
+            
+            else:
+                for i in body:
+                    self.client.write(unicode(hex(len(i))[2:]).encode('ascii') + CRLF)
+                    self.client.write(i + CRLF)
+                
+                self.client.write(b"0" + CRLF + CRLF)
         
         self.client.read_until(EOH, self.stop)
         
