@@ -82,7 +82,7 @@ class HTTPTestCase(ServerTestCase):
         response = Response(headers, b"")
         
         if b"content-length" in response:
-            self.client.read_bytes(int(response['content-length']), self.stop)
+            self.client.read_bytes(int(response[b'content-length']), self.stop)
             response.body = self.wait()
         
         elif response.get(b"transfer-encoding", None) == b"chunked":
