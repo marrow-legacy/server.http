@@ -63,42 +63,56 @@ class HTTPTestCase(ServerTestCase):
         if method not in [b"GET", b"HEAD"] and body and not length_found:
             request += CRLF + b"Transfer-Encoding: chunked"
         
+        log.debug("Writing: %r", request + EOH)
         self.client.write(request + EOH)
         
         if method not in [b"GET", b"HEAD"] and body:
             if length_found:
                 for i in body:
+                    log.debug("Writing: %r", i)
                     self.client.write(i)
             
             else:
                 for i in body:
+                    log.debug("Writing chunk header: %r", unicode(hex(len(i))[2:]).encode('ascii') + CRLF)
                     self.client.write(unicode(hex(len(i))[2:]).encode('ascii') + CRLF)
+                    log.debug("Writing chunk body: %r", i + CRLF)
                     self.client.write(i + CRLF)
                 
+                log.debug("Writing chunk trailer: 0\\r\\n\\r\\n")
                 self.client.write(b"0" + CRLF + CRLF)
         
         self.client.read_until(EOH, self.stop)
         
         headers = self.wait()
+        
+        log.debug("Recieved headers: %r", headers)
+        
         response = Response(headers, b"")
         
         if b"content-length" in response:
             self.client.read_bytes(int(response[b'content-length']), self.stop)
             response.body = self.wait()
+            log.debug("Recieved body: %r", response.body)
         
         elif response.get(b"transfer-encoding", None) == b"chunked":
             while True:
                 self.client.read_until(CRLF, self.stop)
-                
                 length = self.wait()[:-2]
                 
+                log.debug("Recieved chunk header: %r", length)
+                
                 if length == b"0":
+                    log.debug("Reading chunked request trailers.")
                     self.client.read_bytes(2, self.stop)
-                    self.wait()
+                    log.debug("Recieved trailers: %r", self.wait())
                     break
                 
                 self.client.read_bytes(int(length, 16) + 2, self.stop)
-                response.body += self.wait()[:-2]
+                chunk = self.wait()
+                log.debug("Recieved chunk: %r", chunk)
+                response.body += chunk[:-2]
+                
         
         response.complete = response.headers + response.body
         
