@@ -152,7 +152,7 @@ The Marrow HTTP server defines the following WSGI 2 environment variables:
 |_<^. @wsgi.errors@ | A file-like object that, when written to, outputs to the standard Python logging module. |
 |_<^. @wsgi.input@ | A file-like object representing the request body. |
 |_<^. @wsgi.multiprocess@ | @True@ if the server has forked, @False@ otherwise. |
-|_<^. @wsgi.multithread@ | @True@ if the server is multi-threaded and your application *must* be _thread-safe_, @False@ otherwise. |
+|_<^. @wsgi.multithread@ | @True@ if the server is multi-threaded, @False@ otherwise. |
 |_<^. @wsgi.run_once@ | Always @False@. |
 |_<^. @wsgi.url_scheme@ | Determines the protocol used for communication, if possible.  Defaults to @b'http'@ or @b'https'@ if we can reliably determine we are running with SSL security. |
 |_<^. @wsgi.version@ | The version number of the WSGI standard utilized by the server.  The Marrow HTTP server will always define this as @(2, 0)@. |
