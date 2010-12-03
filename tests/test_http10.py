@@ -21,7 +21,7 @@ def echo(request):
     del request['wsgi.errors']
     del request['wsgi.input']
     
-    result = unicode(pformat(request)).encode('utf8').replace('b"', '"').replace('u"', '"')
+    result = unicode(pformat(request)).encode('utf8')
     return b'200 OK', [
             (b'Content-Type', b'text/plain; charset=utf8'),
             (b'Content-Length', unicode(len(result)).encode('ascii'))
