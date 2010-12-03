@@ -259,7 +259,7 @@ class HTTPProtocol(Protocol):
             disconnect = True
             
             if self.pipeline:
-                if env['SERVER_PROTOCOL'] == 'HTTP/1.1':
+                if env['SERVER_PROTOCOL'] == b'HTTP/1.1':
                     disconnect = env.get('HTTP_CONNECTION', None) == b"close"
                 
                 elif env['CONTENT_LENGTH'] is not None or env['REQUEST_METHOD'] in (b'HEAD', b'GET'):
