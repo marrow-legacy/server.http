@@ -90,12 +90,7 @@ class HTTPTestCase(ServerTestCase):
         
         response = Response(headers, b"")
         
-        if b"content-length" in response:
-            self.client.read_bytes(int(response[b'content-length']), self.stop)
-            response.body = self.wait()
-            log.debug("Recieved body: %r", response.body)
-        
-        elif response.get(b"transfer-encoding", None) == b"chunked":
+        if response.get(b"transfer-encoding", None) == b"chunked":
             while True:
                 self.client.read_until(CRLF, self.stop)
                 length = self.wait()[:-2]
@@ -112,7 +107,11 @@ class HTTPTestCase(ServerTestCase):
                 chunk = self.wait()
                 log.debug("Recieved chunk: %r", chunk)
                 response.body += chunk[:-2]
-                
+        
+        elif b"content-length" in response:
+            self.client.read_bytes(int(response[b'content-length']), self.stop)
+            response.body = self.wait()
+            log.debug("Recieved body: %r", response.body)
         
         response.complete = response.headers + response.body
         
