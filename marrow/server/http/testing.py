@@ -18,7 +18,7 @@ from marrow.server.http.protocol import HTTPProtocol
 
 
 log = __import__('logging').getLogger(__name__)
-__all__ = ['CRLF', 'EOH', 'Response', 'HTTPTestCase']
+__all__ = ['CRLF', 'EOH', 'Response', 'HTTPTestCase', 'Hello', 'hello']
 
 
 CRLF = b"\r\n"
@@ -116,3 +116,20 @@ class HTTPTestCase(ServerTestCase):
         response.complete = response.headers + response.body
         
         return response
+
+
+class Hello(object):
+    def __init__(self, name="world"):
+        self.name = unicode(name).encode('utf8')
+    
+    def __call__(self, request):
+        result = b"Hello " + self.name + b"!"
+        
+        return b'200 OK', [
+                (b'Content-Type', b'text/plain; charset=utf8'),
+                (b'Content-Length', unicode(len(result)).encode('ascii'))
+            ], [result]
+
+
+def hello(name="world"):
+    return dict(application=Hello(name))
