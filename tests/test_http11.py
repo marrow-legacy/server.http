@@ -205,7 +205,7 @@ class TestHTTP11BodyProtocol(HTTPTestCase):
         expect = {
                 'CONTENT_LENGTH': None,
                 'CONTENT_TYPE': None,
-                'FRAGMENT': '',
+                'FRAGMENT': b'',
                 'HTTP_HOST': b'localhost',
                 'HTTP_TRANSFER_ENCODING': b'chunked',
                 'PARAMETERS': b'',
