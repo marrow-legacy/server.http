@@ -109,7 +109,7 @@ class HTTPProtocol(Protocol):
         def headers(self, data):
             """Process HTTP headers, and pull in the body as needed."""
             
-            log.debug("Recieved: %r", data)
+            # log.debug("Recieved: %r", data)
             
             line = data[:data.index(CRLF)].split()
             remainder, _, fragment = line[1].partition(b'#')
@@ -178,15 +178,15 @@ class HTTPProtocol(Protocol):
             self.client.read_bytes(length, self.body)
         
         def body(self, data):
-            log.debug("Recieved body: %r", data)
+            # log.debug("Recieved body: %r", data)
             self.environ['wsgi.input'] = IO(data)
             
             self.work()
         
         def body_chunked(self, data):
-            log.debug("Recieved chunk header: %r", data)
+            # log.debug("Recieved chunk header: %r", data)
             length = int(data.decode('ascii').strip(uCRLF).split(';')[0], 16)
-            log.debug("Chunk length: %r", length)
+            # log.debug("Chunk length: %r", length)
             
             if length == 0:
                 self.client.read_until(CRLF, self.body_trailers)
@@ -195,12 +195,12 @@ class HTTPProtocol(Protocol):
             self.client.read_bytes(length + 2, self.body_chunk)
         
         def body_chunk(self, data):
-            log.debug("Recieved chunk: %r", data)
+            # log.debug("Recieved chunk: %r", data)
             self.environ['wsgi.input'].write(data[:-2])
             self.client.read_until(CRLF, self.body_chunked)
         
         def body_trailers(self, data):
-            log.debug("Recieved chunk trailers: %r", data)
+            # log.debug("Recieved chunk trailers: %r", data)
             self.environ['wsgi.input'].seek(0)
             # TODO: Update headers with additional headers.
             self.work()
@@ -267,7 +267,7 @@ class HTTPProtocol(Protocol):
             
             self.finished = False
             
-            log.debug("Disconnect client? %r", disconnect)
+            # log.debug("Disconnect client? %r", disconnect)
             
             if disconnect:
                 self.client.close()
