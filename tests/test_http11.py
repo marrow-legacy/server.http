@@ -75,32 +75,30 @@ class TestHTTP11Protocol(HTTPTestCase):
         self.assertEquals(response[b'content-type'], b"text/plain; charset=utf8")
         # self.assertEquals(response[b'content-length'], b"468")
         
-        log.info("Recieved: %r", response.body)
-        raise Exception
-        # request = eval(response.body)
+        request = eval(response.body)
         
-        # expect = {
-        #         'CONTENT_LENGTH': None,
-        #         'CONTENT_TYPE': None,
-        #         'FRAGMENT': b'',
-        #         'HTTP_CONNECTION': b'close',
-        #         'HTTP_HOST': b'localhost',
-        #         'PARAMETERS': b'',
-        #         'PATH_INFO': b'/',
-        #         'QUERY_STRING': b'',
-        #         'REMOTE_ADDR': b'127.0.0.1',
-        #         'REQUEST_METHOD': b'GET',
-        #         'SCRIPT_NAME': b'',
-        #         'SERVER_ADDR': b'127.0.0.1',
-        #         'SERVER_PROTOCOL': b'HTTP/1.1',
-        #         'wsgi.multiprocess': False,
-        #         'wsgi.multithread': False,
-        #         'wsgi.run_once': False,
-        #         'wsgi.url_scheme': b'http',
-        #         'wsgi.version': (2, 0)
-        #     }
-        # 
-        # self.assertEquals(request, expect)
+        expect = {
+                'CONTENT_LENGTH': None,
+                'CONTENT_TYPE': None,
+                'FRAGMENT': b'',
+                'HTTP_CONNECTION': b'close',
+                'HTTP_HOST': b'localhost',
+                'PARAMETERS': b'',
+                'PATH_INFO': b'/',
+                'QUERY_STRING': b'',
+                'REMOTE_ADDR': b'127.0.0.1',
+                'REQUEST_METHOD': b'GET',
+                'SCRIPT_NAME': b'',
+                'SERVER_ADDR': b'127.0.0.1',
+                'SERVER_PROTOCOL': b'HTTP/1.1',
+                'wsgi.multiprocess': False,
+                'wsgi.multithread': False,
+                'wsgi.run_once': False,
+                'wsgi.url_scheme': b'http',
+                'wsgi.version': (2, 0)
+            }
+        
+        self.assertEquals(request, expect)
     
     def test_single(self):
         self.request(headers=[(b'Connection', b'close')])
