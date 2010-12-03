@@ -27,7 +27,7 @@ def clean(request):
 
 def echo(request):
     clean(request)
-    result = unicode(pformat(request)).encode('utf8')
+    result = unicode(pformat(request)).encode('utf8').replace('b"', '"').replace('u"', '"')
     return b'200 OK', [
             (b'Content-Type', b'text/plain; charset=utf8'),
             (b'Content-Length', unicode(len(result)).encode('ascii'))
@@ -36,7 +36,7 @@ def echo(request):
 
 def chunked(request):
     clean(request)
-    result = unicode(pformat(request)).encode('utf8')
+    result = unicode(pformat(request)).encode('utf8').replace('b"', '"').replace('u"', '"')
     return b'200 OK', [
             (b'Content-Type', b'text/plain; charset=utf8'),
         ], result.split(b"\n")
