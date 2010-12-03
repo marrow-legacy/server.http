@@ -74,6 +74,7 @@ class TestHTTP11Protocol(HTTPTestCase):
         self.assertEquals(response[b'content-type'], b"text/plain; charset=utf8")
         # self.assertEquals(response[b'content-length'], b"468")
         
+        log.info("Recieved: %r", response.body)
         request = eval(response.body)
         
         expect = {
