@@ -184,7 +184,7 @@ class HTTPProtocol(Protocol):
         
         def body_chunked(self, data):
             log.debug("Recieved chunk header: %r", data)
-            length = data.strip(CRLF).split(';')[0]
+            length = data.decode('ascii').strip(CRLF).split(';')[0]
             
             if length == b'0':
                 self.client.read_until(CRLF, self.body_trailers)
