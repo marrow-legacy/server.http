@@ -131,29 +131,29 @@ h2(#environment). %4.% WSGI 2 Environment
 
 The Marrow HTTP server defines the following WSGI 2 environment variables:
 
-|_. @CONTENT_LENGTH@ | The length of the request body.  Defaults to @None@ if the client did not specify a @Content-Length@ header. |
-|_. @CONTENT_TYPE@ | The MIME classification of the request body.  Defaults to @None@ if not specified by the client. |
-|_. @FRAGMENT@ | The portion of the URL after the hash (@#@) mark.  Defaults to @b""@ if not present in the request. |
-|_. @HTTP_HOST@ | The host name the request was sent to.  E.g. @b'localhost'@ |
-|_. @HTTP_TRANSFER_ENCODING@ | If present, indicates the body was sent using HTTP/1.1 chunked encoding and that @CONTENT_LENGTH@ should not be used to indicate the presence of a request body. |
-|_. @HTTP_*@ | Any additional headers sent by the web browser (e.g. Cookie) will be added to the environment, names upper-cased, with hyphens replaced by underscores. |
-|_. @PARAMETERS@ | The portion of the URL after the semi-colon (@;@) mark.  Rarely used.  Defaults to @b""@ if not present in the request. |
-|_. @PATH_INFO@ | The path and file portion of the requested URL. |
-|_. @QUERY_STRING@ | The portion of the URL after the question (@?@) mark.  Usually referred to as GET variables.  Defaults to @b""@ if not present in the request. |
-|_. @REMOTE_ADDR@ | The IP address of the client. |
-|_. @REQUEST_METHOD@ | The HTTP method, such as GET, HEAD, POST, or PUT.  Certain request methods do not contain bodies, e.g. GET and HEAD. |
-|_. @SCRIPT_NAME@ | The portion of the request path that has been matched or consumed by the application thus far.  This is stripped off of @PATH_INFO@ such that the full original request URL can be re-constructed by concatenating @SCRIPT_NAME@ and @PATH_INFO@ together.  Used by routing systems to indicate current routing position.  Defaults to @b''@. |
-|_. @SERVER_ADDR@ | The IP address the server is bound to.  E.g. @b'127.0.0.1'@ |
-|_. @SERVER_NAME@ | The DNS name of the server. |
-|_. @SERVER_PORT@ | The port number the server is listening on, as a bytestring.  E.g. @b'8080'@. |
-|_. @SERVER_PROTOCOL@ | The request protocol. e.g. @b'HTTP/1.1'@ |
-|_. @wsgi.errors@ | A file-like object that, when written to, outputs to the standard Python logging module. |
-|_. @wsgi.input@ | A file-like object representing the request body. |
-|_. @wsgi.multiprocess@ | @True@ if the server has forked, @False@ otherwise. |
-|_. @wsgi.multithread@ | @True@ if the server is multi-threaded and your application needs to be _thread-safe_, @False@ otherwise. |
-|_. @wsgi.run_once@ | Always @False@. |
-|_. @wsgi.url_scheme@ | Determines the protocol used for communication, if possible.  Defaults to @b'http'@ or @b'https'@ if we can reliably determine we are running with SSL security. |
-|_. @wsgi.version@ | The version number of the WSGI standard utilized by the server.  The Marrow HTTP server will always define this as @(2, 0)@. |
+|_<^. @CONTENT_LENGTH@ | The length of the request body.  Defaults to @None@ if the client did not specify a @Content-Length@ header. |
+|_<^. @CONTENT_TYPE@ | The MIME classification of the request body.  Defaults to @None@ if not specified by the client. |
+|_<^. @FRAGMENT@ | The portion of the URL after the hash (@#@) mark.  Defaults to @b""@ if not present in the request. |
+|_<^. @HTTP_HOST@ | The host name the request was sent to.  E.g. @b'localhost'@ |
+|_<^. @HTTP_TRANSFER_ENCODING@ | If present, indicates the body was sent using HTTP/1.1 chunked encoding and that @CONTENT_LENGTH@ should not be used to indicate the presence of a request body. |
+|_<^. @HTTP_*@ | Any additional headers sent by the web browser (e.g. Cookie) will be added to the environment, names upper-cased, with hyphens replaced by underscores. |
+|_<^. @PARAMETERS@ | The portion of the URL after the semi-colon (@;@) mark.  Rarely used.  Defaults to @b""@ if not present in the request. |
+|_<^. @PATH_INFO@ | The path and file portion of the requested URL. |
+|_<^. @QUERY_STRING@ | The portion of the URL after the question (@?@) mark.  Usually referred to as GET variables.  Defaults to @b""@ if not present in the request. |
+|_<^. @REMOTE_ADDR@ | The IP address of the client. |
+|_<^. @REQUEST_METHOD@ | The HTTP method, such as GET, HEAD, POST, or PUT.  Certain request methods do not contain bodies, e.g. GET and HEAD. |
+|_<^. @SCRIPT_NAME@ | The portion of the request path that has been matched or consumed by the application thus far.  This is stripped off of @PATH_INFO@ such that the full original request URL can be re-constructed by concatenating @SCRIPT_NAME@ and @PATH_INFO@ together.  Used by routing systems to indicate current routing position.  Defaults to @b''@. |
+|_<^. @SERVER_ADDR@ | The IP address the server is bound to.  E.g. @b'127.0.0.1'@ |
+|_<^. @SERVER_NAME@ | The DNS name of the server. |
+|_<^. @SERVER_PORT@ | The port number the server is listening on, as a bytestring.  E.g. @b'8080'@. |
+|_<^. @SERVER_PROTOCOL@ | The request protocol. e.g. @b'HTTP/1.1'@ |
+|_<^. @wsgi.errors@ | A file-like object that, when written to, outputs to the standard Python logging module. |
+|_<^. @wsgi.input@ | A file-like object representing the request body. |
+|_<^. @wsgi.multiprocess@ | @True@ if the server has forked, @False@ otherwise. |
+|_<^. @wsgi.multithread@ | @True@ if the server is multi-threaded and your application needs to be _thread-safe_, @False@ otherwise. |
+|_<^. @wsgi.run_once@ | Always @False@. |
+|_<^. @wsgi.url_scheme@ | Determines the protocol used for communication, if possible.  Defaults to @b'http'@ or @b'https'@ if we can reliably determine we are running with SSL security. |
+|_<^. @wsgi.version@ | The version number of the WSGI standard utilized by the server.  The Marrow HTTP server will always define this as @(2, 0)@. |
 
 
 h2(#testing). %5.% Testing
