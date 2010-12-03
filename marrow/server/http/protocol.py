@@ -17,6 +17,7 @@ log = __import__('logging').getLogger(__name__)
 
 
 CRLF = b"\r\n"
+uCRLF = "\r\n"
 HTTP_INTERNAL_ERROR = b" 500 Internal Server Error\r\nContent-Type: text/plain\r\nContent-Length: 48\r\n\r\nThe server encountered an unrecoverable error.\r\n"
 
 
@@ -184,7 +185,7 @@ class HTTPProtocol(Protocol):
         
         def body_chunked(self, data):
             log.debug("Recieved chunk header: %r", data)
-            length = data.decode('ascii').strip(CRLF).split(';')[0]
+            length = data.decode('ascii').strip(uCRLF).split(';')[0]
             
             if length == b'0':
                 self.client.read_until(CRLF, self.body_trailers)
