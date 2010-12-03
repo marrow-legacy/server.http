@@ -156,7 +156,7 @@ class TestHTTP11BodyProtocol(HTTPTestCase):
     
     def test_normal(self):
         body = b"Hello world!"
-        response = self.request(b"PUT", headers=[('Content-Length', unicode(len(body)).encode('ascii'))], body=[body])
+        response = self.request(b"PUT", headers=[(b'Content-Length', unicode(len(body)).encode('ascii'))], body=[body])
         
         self.assertEquals(response.protocol, b"HTTP/1.1")
         self.assertEquals(response.code, b"200")
