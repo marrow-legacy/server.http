@@ -105,7 +105,7 @@ class TestHTTP11Protocol(HTTPTestCase):
         def try_again():
             self.request(headers=[(b'Connection', b'close')])
         
-        self.assertRaises(socket.error, try_again)
+        self.assertRaises((socket.error, IOError), try_again)
     
     def test_keepalive(self):
         one = self.request()

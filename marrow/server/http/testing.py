@@ -12,6 +12,7 @@ import sys
 import time
 import socket
 
+from marrow.util.compat import unicode
 from marrow.server.testing import ServerTestCase
 from marrow.server.http.protocol import HTTPProtocol
 

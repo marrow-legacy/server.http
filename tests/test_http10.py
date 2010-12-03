@@ -71,7 +71,7 @@ class TestHTTP10Protocol(HTTPTestCase):
         def try_again():
             self.request(protocol=b"HTTP/1.0")
         
-        self.assertRaises(socket.error, try_again)
+        self.assertRaises((socket.error, IOError), try_again)
     
     def test_keepalive(self):
         one = self.request(protocol=b"HTTP/1.0", headers=[(b'Connection', b'keep-alive')])
