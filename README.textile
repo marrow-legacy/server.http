@@ -108,7 +108,9 @@ h3(#basic-manual). %3.2.% Manual Configuration
 
 You can manually configure and run the HTTPServer instance:
 
-<pre><code>if __name__ == '__main__':
+<pre><code>from marrow.server.http import HTTPServer
+
+if __name__ == '__main__':
     HTTPServer(None, 8080, application=hello).start()</code></pre>
 
 The @HTTPServer@ class accepts the following positional arguments:
