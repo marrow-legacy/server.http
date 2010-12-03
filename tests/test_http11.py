@@ -28,6 +28,7 @@ def clean(request):
 def echo(request):
     clean(request)
     result = unicode(pformat(request)).encode('utf8')
+    log.info("Result: %r", result)
     return b'200 OK', [
             (b'Content-Type', b'text/plain; charset=utf8'),
             (b'Content-Length', unicode(len(result)).encode('ascii'))
