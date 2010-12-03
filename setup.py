@@ -47,6 +47,7 @@ setup(
         keywords = '',
         
         install_requires = ['marrow.util', 'marrow.server'],
+        extras_require = {'script': ['marrow.script']},
         
         test_suite = 'nose.collector',
         tests_require = ['nose', 'coverage'],
@@ -79,6 +80,7 @@ setup(
         namespace_packages = ['marrow', 'marrow.server'],
         
         entry_points = {
+                'console_scripts': [ 'marrowhttpd = marrow.server.http.command:main [script]' ],
                 'marrow.server': ['http = marrow.server.http:HTTPServer']
             }
     )
