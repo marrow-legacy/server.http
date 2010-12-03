@@ -80,7 +80,7 @@ setup(
         namespace_packages = ['marrow', 'marrow.server'],
         
         entry_points = {
-                'console_scripts': [ 'marrowhttpd = marrow.server.http.command:main [script]' ],
+                'console_scripts': [ 'marrow.httpd = marrow.server.http.command:main [script]' ],
                 'marrow.server': ['http = marrow.server.http:HTTPServer']
             }
     )

@@ -1,14 +1,177 @@
-h2. Marrow HTTP/1.1 Server
+h1(#title). Marrow HTTP/1.1 Server
 
-A fast, multi-threaded, multi-process, optionally asynchronous HTTP/1.1-compatible WSGI 2 server.
+bq(subtitle). A fast, multi-process, asynchronous HTTP/1.1-compliant WSGI 2 server.
 
-* Based on Tornado's IOLoop/IOStream architecture.
-* Not as fast as Tornado's web server, but understands WSGI natively while maintaining async support.
-* Understands WSGI 2; something no other WSGI server does.  ;)
+bq(byline). (C) 2010, Alice Bevan-McGregor
 
-In the near future:
+bq(byline). "https://github.com/pulp/marrow.server.http":github-package
 
-* Multi-threaded and multi-process support for better load balancing and throughput.
-* Full bidirectional async support.
-* Documentation.
-* Unit tests.
+[github-package]https://github.com/pulp/marrow.server.http
+
+
+
+h2(#what-is). %1.% What is Marrow HTTP?
+
+The @marrow.server.http@ package is a full-featured "HTTP/1.1":http-spec compliant web server hosting "WSGI 2":wsgi2-spec applications.  It is:
+
+* Based on a "modified version":marrow-io of "Tornado's IOLoop/IOStream":tornado architecture.
+* Faster than the competition by a significant margin.
+* Simple and efficient in design, allowing rapid development and easy bug fixing.
+* Internally asynchronous.  "WSGI 2":wsgi2-spec applications will be able to benefit from this when @wsgi.async@ is better defined.
+* Compatible with Python 2.6+ and 3.1+ out of the box; no need for automated conversion scripts or maintaining two separate code trees.
+* Fully unit tested protocol on both Python 2.6+ and 3.1+.  (Excluding code specific to the other version.)
+
+[http-spec]http://tools.ietf.org/html/rfc2616
+[wsgi2-spec]https://github.com/GothAlice/wsgi2/blob/master/pep-0444.rst
+[marrow-io]https://github.com/pulp/marrow.io
+[tornado]http://www.tornadoweb.org/
+
+
+h2(#installation). %2.% Installation
+
+Installing @marrow.server.http@ is easy, just execute the following in a terminal:
+
+<pre><code>pip install marrow.server.http</code></pre>
+
+If you add @marrow.server.http@ to the @install_requires@ argument of the call to @setup()@ in your application's @setup.py@ file, @marrow.server.http@ will be automatically installed and made available when your own application is installed.
+
+
+h3(#install-dev). %2.1.% Development Version
+
+Development takes place on "GitHub":github in the "marrow.server.http":github-project project.  Issue tracking, documentation, and downloads are provided there.
+
+Installing the current development version requires "Git":git, a distributes source code management system.  If you have Git, you can run the following to download and _link_ the development version into your Python runtime:
+
+<pre><code>git clone https://github.com/pulp/marrow.server.http.git
+(cd marrow.server.http; python setup.py develop)</code></pre>
+
+You can upgrade to the latest version at any time:
+
+<pre><code>(cd marrow.server.http; git pull; python setup.py develop)</code></pre>
+
+If you would like to make changes and contribute them back to the project, fork the GitHub project, make your changes, and submit a pull request.  This process is beyond the scope of this documentation; for more information, see "GitHub's documentation":github-help.
+
+
+[github]https://github.com/
+[git]http://git-scm.com/
+[github-help]http://help.github.com/
+
+
+
+h2(#basic). %3.% Usage
+
+If you have a callable that follows the WSGI 2 specification, there are two ways you can utilize it:
+
+* Create a factory callable that returns the arguments passed to the HTTPServer() class, then utilize the @marrow.httpd@ command-line script.  Refer to the "manual configuration":#basic-manual section for a reference of the available arguments.
+* Manually configure and run the HTTPServer() class.
+
+
+h3(#basic-factory). %3.1.% WSGI 2 Factory
+
+A WSGI 2 factory, used by the @marrow.httpd@ command-line script, allows you to configure the web server prior to serving requests.  Your factory can accept additional named arguments which may be overridden on the command-line.  Create a function like the one below within an installable Python package:
+
+<pre><code>def factory(name="world"):
+    return dict(application=Hello(name), egress=[CompressionFilter()])</code></pre>
+
+The only required value is @application@, which should reference a WSGI 2 callable. Additional options are described "below":#basic-manual.
+
+Once you have a factory, and your package is installed (either by @setup.py install@ or @setup.py develop@) you can run the @marrow.httpd@ script:
+
+<pre><code>Marrow HTTP/1.1 Server
+Usage: marrowhttpd [OPTIONS] [--name=value...] <factory> 
+
+OPTIONS may be one or more of:
+
+ -V, --version   Show version and copyright information, then exit.
+ -f, --fork=VAL  The number of processes to spawn. Defaults to 1. Set to zero to detect the
+                 number of logical processors.
+ -h, --help      Display this help and exit.
+ -o, --host=VAL  The interface to bind to, defaults to all.
+                 E.g. 127.0.0.1
+ -p, --port=VAL  The port number to bind to, defaults to 8080.
+ -q, --quiet     Decrease logging level to WARN.
+ -v, --verbose   Increase logging level to DEBUG.
+
+This script allows you to use a factory function to configure middleware,
+application settings, and filters.  Specify the dot-notation path (e.g.
+mypkg.myapp:factory) as the first positional argument.
+
+To demonstrate the server use "marrow.server.http.testing:hello" as the
+factory.  This factory accepts one argument, --name, allowing you to
+personalize the response.
+
+You can specify an unlimited number of --name=value arguments which will be
+passed to the factory.</code></pre>
+
+
+h3(#basic-manual). %3.2.% Manual Configuration
+
+You can manually configure and run the HTTPServer instance:
+
+<pre><code>if __name__ == '__main__':
+    HTTPServer(None, 8080, application=hello).start()</code></pre>
+
+The @HTTPServer@ class accepts the following positional arguments:
+
+* @host@ -- The interface to bind to.  Defaults to @None@ (all interfaces).
+* @port@ -- The port number to bind to.  There is no default; this *must* be specified.
+
+And additional keyword arguments:
+
+* @pool@ -- The new connection waiting pool.  This determines how many incoming connections can queue up waiting to be served.  Defaults to @128@.
+* @fork@ -- The number of processes to spawn.  Defaults to @1@ (no forking); set to @None@ or @0@ to detect the number of logical processors on the machine and spawn that many copies.
+* @threaded@ -- Enable multi-threading.  This is currently unimplemented pending support up-stream in @marrow.server@ and defaults to @False@.
+* @application@ -- The WSGI 2 application callable.  You *must* specify this.
+* @ingress@ -- A list of ingress filters.
+* @egress@ -- A list of egress filters.
+* @**options@ -- Additional options to be saved; _optional_.
+
+
+h2(#environment). %4.% WSGI 2 Environment
+
+The Marrow HTTP server defines the following WSGI 2 environment variables:
+
+* @CONTENT_LENGTH@ -- The length of the request body.  Defaults to @None@ if the client did not specify a @Content-Length@ header.
+* @CONTENT_TYPE@ -- The MIME classification of the request body.  Defaults to @None@ if not specified by the client.
+* @FRAGMENT@ -- The portion of the URL after the hash (@#@) mark.  Defaults to @b""@ if not present in the request.
+* @HTTP_HOST@ -- The host name the request was sent to.  E.g. @b'localhost'@
+* @HTTP_TRANSFER_ENCODING@ -- If present, indicates the body was sent using HTTP/1.1 chunked encoding and that @CONTENT_LENGTH@ should not be used to indicate the presence of a request body.
+* @HTTP_*@ -- Any additional headers sent by the web browser (e.g. Cookie) will be added to the environment, names upper-cased, with hyphens replaced by underscores.
+* @PARAMETERS@ -- The portion of the URL after the semi-colon (@;@) mark.  Rarely used.  Defaults to @b""@ if not present in the request.
+* @PATH_INFO@ -- The path and file portion of the requested URL.
+* @QUERY_STRING@ -- The portion of the URL after the question (@?@) mark.  Usually referred to as GET variables.  Defaults to @b""@ if not present in the request.
+* @REMOTE_ADDR@ -- The IP address of the client.
+* @REQUEST_METHOD@ -- The HTTP method, such as GET, HEAD, POST, or PUT.  Certain request methods do not contain bodies, e.g. GET and HEAD.
+* @SCRIPT_NAME@ -- The portion of the request path that has been matched or consumed by the application thus far.  This is stripped off of @PATH_INFO@ such that the full original request URL can be re-constructed by concatenating @SCRIPT_NAME@ and @PATH_INFO@ together.  Used by routing systems to indicate current routing position.  Defaults to @b''@.
+* @SERVER_ADDR@ -- The IP address the server is bound to.  E.g. @b'127.0.0.1'@
+* @SERVER_NAME@ -- The DNS name of the server.
+* @SERVER_PORT@ -- The port number the server is listening on, as a bytestring.  E.g. @b'8080'@.
+* @SERVER_PROTOCOL@ -- The request protocol. e.g. @b'HTTP/1.1'@
+* @wsgi.errors@ -- A file-like object that, when written to, outputs to the standard Python logging module.
+* @wsgi.input@ -- A file-like object representing the request body.
+* @wsgi.multiprocess@ -- @True@ if the server has forked, @False@ otherwise.
+* @wsgi.multithread@ -- @True@ if the server is multi-threaded and your application needs to be _thread-safe_, @False@ otherwise.
+* @wsgi.run_once@ -- Always @False@.
+* @wsgi.url_scheme@ -- Determines the protocol used for communication, if possible.  Defaults to @b'http'@ or @b'https'@ if we can reliably determine we are running with SSL security.
+* @wsgi.version@ -- The version number of the WSGI standard utilized by the server.  The Marrow HTTP server will always define this as @(2, 0)@.
+
+
+h2(#testing). %5.% Testing
+
+The Marrow suite of packages include unit test helpers (in @marrow.server.http.testing@ for this package) which aid in the development of your own unit test suites.  For examples of usage, see the unit test for @marrow.server.http@ which make extensive use of these helpers.
+
+
+h2(#license). %6.% Marrow HTTP Server License
+
+The Marrow HTTP Server has been released under the MIT Open Source license.
+
+
+h3. %6.1.% The MIT License
+
+Copyright (C) 2010 Alice Bevan-McGregor and contributors.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NON-INFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
