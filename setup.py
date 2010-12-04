@@ -47,7 +47,7 @@ setup(
         keywords = '',
         
         install_requires = ['marrow.util', 'marrow.server'],
-        extras_require = {'script': ['marrow.script']},
+        extras_require = {'script': ['marrow.script >= 1.1']},
         
         test_suite = 'nose.collector',
         tests_require = ['nose', 'coverage'],

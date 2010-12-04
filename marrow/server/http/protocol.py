@@ -5,11 +5,18 @@ from __future__ import unicode_literals
 import sys
 import cgi
 
+import time
 from functools import partial
 
 from marrow.server.protocol import Protocol
 
 from marrow.util.compat import binary, unicode, IO
+
+try:
+    from email.utils import formatdate
+
+except ImportError:
+    from rfc822 import formatdate
 
 
 __all__ = ['HTTPProtocol', 'HTTPServer']
@@ -19,6 +26,7 @@ log = __import__('logging').getLogger(__name__)
 CRLF = b"\r\n"
 uCRLF = "\r\n"
 HTTP_INTERNAL_ERROR = b" 500 Internal Server Error\r\nContent-Type: text/plain\r\nContent-Length: 48\r\n\r\nThe server encountered an unrecoverable error.\r\n"
+__versionstring__ = b'Marrow HTTP Server 1.0'
 
 
 
@@ -38,6 +46,7 @@ class LoggingFile(object): # pragma: no cover
         for line in lines:
             self.logger(line)
 
+errorlog = LoggingFile(__import__('logging').getLogger('wsgi.errors'))
 
 
 class HTTPProtocol(Protocol):
@@ -74,7 +83,7 @@ class HTTPProtocol(Protocol):
             env['SERVER_PORT'] = protocol._port
             
             env['wsgi.input'] = IO()
-            env['wsgi.errors'] = LoggingFile()
+            env['wsgi.errors'] = errorlog
             env['wsgi.version'] = (2, 0)
             env['wsgi.multithread'] = getattr(server, 'threaded', False) # Temporary hack until marrow.server 1.0 release.
             env['wsgi.multiprocess'] = server.fork != 1
@@ -219,6 +228,9 @@ class HTTPProtocol(Protocol):
                 
                 for filter_ in self.protocol.egress:
                     status, headers, body = filter_(env, status, headers, body)
+                
+                headers.append((b'Server', __versionstring__))
+                headers.append((b'Date', unicode(formatdate(time.time(), False, True)).encode('ascii')))
                 
                 if env['SERVER_PROTOCOL'] == b"HTTP/1.1" and 'content-length' not in [i[0].lower() for i in headers]:
                     headers.append((b"Transfer-Encoding", b"chunked"))
