@@ -26,7 +26,7 @@ log = __import__('logging').getLogger(__name__)
 CRLF = b"\r\n"
 uCRLF = "\r\n"
 HTTP_INTERNAL_ERROR = b" 500 Internal Server Error\r\nContent-Type: text/plain\r\nContent-Length: 48\r\n\r\nThe server encountered an unrecoverable error.\r\n"
-__versionstring__ = b'Marrow HTTP Server 1.0'
+__versionstring__ = b'marrow.httpd/1.0'
 
 
 
