@@ -235,32 +235,42 @@ class HTTPProtocol(Protocol):
                 if env['SERVER_PROTOCOL'] == b"HTTP/1.1" and 'content-length' not in [i[0].lower() for i in headers]:
                     headers.append((b"Transfer-Encoding", b"chunked"))
                     headers = env['SERVER_PROTOCOL'] + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + CRLF + CRLF
-                    self.write(headers, partial(self.write_body_chunked, iter(body)))
+                    self.write(headers, partial(self.write_body_chunked, body, iter(body)))
                     return
                 
                 headers = env['SERVER_PROTOCOL'] + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + CRLF + CRLF
                 
-                self.write(headers, partial(self.write_body, iter(body)))
+                self.write(headers, partial(self.write_body, body, iter(body)))
             
             except:
                 log.exception("Unhandled application exception.")
                 self.write(env['SERVER_PROTOCOL'] + HTTP_INTERNAL_ERROR, self.finish)
         
-        def write_body(self, body):
+        def write_body(self, original, body):
             try:
                 chunk = next(body)
-                self.write(chunk, partial(self.write_body, body))
+                self.write(chunk, partial(self.write_body, original, body))
             
             except StopIteration:
+                try:
+                    original.close()
+                except AttributeError:
+                    pass
+                
                 self.finish()
         
-        def write_body_chunked(self, body):
+        def write_body_chunked(self, original, body):
             try:
                 chunk = next(body)
                 chunk = unicode(hex(len(chunk)))[2:].encode('ascii') + CRLF + chunk + CRLF
-                self.write(chunk, partial(self.write_body_chunked, body))
+                self.write(chunk, partial(self.write_body_chunked, original, body))
             
             except StopIteration:
+                try:
+                    original.close()
+                except AttributeError:
+                    pass
+                
                 self.write(b"0" + CRLF + CRLF, self.finish)
         
         def _finish(self):
