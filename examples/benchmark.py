@@ -32,11 +32,12 @@ def main(host="127.0.0.1", port=8888):
     server = HTTPServer(host=host, port=port, application=hello)
     
     def handle_sigchld(sig, frame):
-        IOLoop.instance().add_callback(server.stop)
+        server.io.add_callback(server.stop)
     
     signal.signal(signal.SIGCHLD, handle_sigchld)
     
-    server.start(loop=False)
+    
+    server.start(testing=IOLoop.instance())
     proc = subprocess.Popen("ab -n 10000 -c 25 http://%s:%d/" % (host, port), shell=True)
     server.io.start()
 
