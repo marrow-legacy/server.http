@@ -24,6 +24,7 @@ log = __import__('logging').getLogger(__name__)
 
 
 CRLF = b"\r\n"
+dCRLF = b"\r\n\r\n"
 uCRLF = "\r\n"
 HTTP_INTERNAL_ERROR = b" 500 Internal Server Error\r\nContent-Type: text/plain\r\nContent-Length: 48\r\n\r\nThe server encountered an unrecoverable error.\r\n"
 __versionstring__ = b'marrow.httpd/1.0'
@@ -99,7 +100,7 @@ class HTTPProtocol(Protocol):
             self.finished = False
             self.pipeline = protocol.options.get('pipeline', True) # TODO
             
-            client.read_until(CRLF + CRLF, self.headers)
+            client.read_until(dCRLF, self.headers)
         
         def write(self, chunk, callback=None):
             assert not self.finished, "Attempt to write to completed request."
@@ -234,11 +235,11 @@ class HTTPProtocol(Protocol):
                 
                 if env['SERVER_PROTOCOL'] == b"HTTP/1.1" and 'content-length' not in [i[0].lower() for i in headers]:
                     headers.append((b"Transfer-Encoding", b"chunked"))
-                    headers = env['SERVER_PROTOCOL'] + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + CRLF + CRLF
+                    headers = env['SERVER_PROTOCOL'] + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + dCRLF
                     self.write(headers, partial(self.write_body_chunked, body, iter(body)))
                     return
                 
-                headers = env['SERVER_PROTOCOL'] + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + CRLF + CRLF
+                headers = env['SERVER_PROTOCOL'] + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + dCRLF
                 
                 self.write(headers, partial(self.write_body, body, iter(body)))
             
@@ -271,7 +272,7 @@ class HTTPProtocol(Protocol):
                 except AttributeError:
                     pass
                 
-                self.write(b"0" + CRLF + CRLF, self.finish)
+                self.write(b"0" + dCRLF, self.finish)
         
         def _finish(self):
             # TODO: Pre-calculate this and pass self.client.close as the body writer callback only if we need to disconnect.
@@ -295,4 +296,4 @@ class HTTPProtocol(Protocol):
                 self.client.close()
                 return
             
-            self.client.read_until(CRLF + CRLF, self.headers)
+            self.client.read_until(dCRLF, self.headers)
