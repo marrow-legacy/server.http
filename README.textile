@@ -121,7 +121,7 @@ The @HTTPServer@ class accepts the following positional arguments:
 And additional keyword arguments:
 
 * @pool@ -- The new connection waiting pool.  This determines how many incoming connections can queue up waiting to be served.  Defaults to @128@.
-* @fork@ -- The number of processes to spawn.  Defaults to @1@ (no forking); set to @None@ or @0@ to detect the number of logical processors on the machine and spawn that many copies.
+* @fork@ -- The number of processes to spawn.  Defaults to @1@ (no forking); set to @None@ or @0@ to detect the number of logical processors on the machine and spawn that many copies.  A negative value can be used to indicate detection of logical processors while leaving the absolute value of processors free.  E.g. @-1@ would fork @processors-1@ copies.
 * @threaded@ -- Enable multi-threading.  This is currently unimplemented pending support up-stream in @marrow.server@ and defaults to @False@.
 * @application@ -- The WSGI 2 application callable.  You *must* specify this.
 * @ingress@ -- A list of ingress filters.
