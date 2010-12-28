@@ -1,12 +1,11 @@
 # encoding: utf-8
 
-from __future__ import unicode_literals
-
 import sys
 import cgi
 
 import time
 from functools import partial
+from inspect import getouterframes, currentframe
 
 from marrow.server.protocol import Protocol
 from marrow.server.http import release
@@ -26,7 +25,6 @@ log = __import__('logging').getLogger(__name__)
 
 CRLF = b"\r\n"
 dCRLF = b"\r\n\r\n"
-uCRLF = "\r\n"
 HTTP_INTERNAL_ERROR = b" 500 Internal Server Error\r\nContent-Type: text/plain\r\nContent-Length: 48\r\n\r\nThe server encountered an unrecoverable error.\r\n"
 __versionstring__ = b'marrow.httpd/' + release.release
 
@@ -43,6 +41,8 @@ except:
 # TODO: Separate out into marrow.util.
 def bytestring(s, encoding="iso-8859-1", fallback="iso-8859-1"):
     if not isinstance(s, unicode):
+        fname, line = getouterframes(currentframe())[1][1:3]
+        log.warn("Value is already byte string.\n%s:%d", fname, line)
         return s
     
     try:
@@ -55,6 +55,8 @@ def bytestring(s, encoding="iso-8859-1", fallback="iso-8859-1"):
 # TODO: Separate out into marrow.util.
 def native(s, encoding="iso-8859-1", fallback="iso-8859-1"):
     if isinstance(s, str):
+        fname, line = getouterframes(currentframe())[1][1:3]
+        log.warn("Value is already native string.\n%s:%d", fname, line)
         return s
     
     try:
@@ -64,47 +66,11 @@ def native(s, encoding="iso-8859-1", fallback="iso-8859-1"):
         return s.encode(fallback)
 
 
-# TODO: This is a -really- /stupid/ way to do this. (Double emphasis is important, there.)
-# TODO: Remove the from __future__ import unicode_literals line and remove this crap.
-HEADERS = dict([(i, native(i)) for i in [
-        'SERVER_PROTOCOL',
-        'CONTENT_LENGTH',
-        'REQUEST_METHOD',
-        'REMOTE_ADDR',
-        'SERVER_NAME',
-        'SERVER_ADDR',
-        'SERVER_PORT',
-        'SCRIPT_NAME',
-        'CONTENT_TYPE',
-        'PATH_INFO',
-        'PARAMETERS',
-        'QUERY_STRING',
-        'FRAGMENT',
-        
-        'HTTP_',
-        'HTTP_HOST',
-        'HTTP_EXPECT',
-        'HTTP_TRANSFER_ENCODING',
-        'HTTP_CONNECTION',
-        
-        'wsgi.input',
-        'wsgi.errors',
-        'wsgi.version',
-        'wsgi.multithread',
-        'wsgi.multiprocess',
-        'wsgi.run_once',
-        'wsgi.url_scheme',
-    ]])
-
-
-
 # TODO: Separate out into marrow.util.
 class LoggingFile(object): # pragma: no cover
-    def __init__(self, logger=None):
-        self.logger = logger if logger else log.error
-    
-    def flush(self): 
-        pass # no-op
+    def __init__(self, logger=None, level=logging.ERROR):
+        logger = logger if logger else logging.getLogger('wsgi.errors')
+        self.logger = partial(logger.log, level)
     
     def write(self, text):
         self.logger(text)
@@ -112,6 +78,19 @@ class LoggingFile(object): # pragma: no cover
     def writelines(self, lines):
         for line in lines:
             self.logger(line)
+    
+    def close(self, *args, **kw): 
+        """A no-op method used for several of the file-like object methods."""
+        pass
+    
+    def next(self, *args, **kw):
+        """An error-raising exception usedbfor several of the methods."""
+        raise IOError("Logging files can not be read.")
+    
+    flush = close
+    read = next
+    readline = next
+    readlines = next
 
 errorlog = LoggingFile(__import__('logging').getLogger('wsgi.errors'))
 
@@ -145,18 +124,18 @@ class HTTPProtocol(Protocol):
             self.client = client
             
             env = dict()
-            env[HEADERS['REMOTE_ADDR']] = unicode(client.address[0]).encode('ascii')
-            env[HEADERS['SERVER_NAME']] = protocol._name
-            env[HEADERS['SERVER_ADDR']] = protocol._addr
-            env[HEADERS['SERVER_PORT']] = protocol._port
+            env['REMOTE_ADDR'] = native(client.address[0])
+            env['SERVER_NAME'] = native(protocol._name)
+            env['SERVER_ADDR'] = native(protocol._addr)
+            env['SERVER_PORT'] = native(protocol._port)
             
-            env[HEADERS['wsgi.input']] = IO()
-            env[HEADERS['wsgi.errors']] = errorlog
-            env[HEADERS['wsgi.version']] = (2, 0)
-            env[HEADERS['wsgi.multithread']] = getattr(server, 'threaded', False) # Temporary hack until marrow.server 1.0 release.
-            env[HEADERS['wsgi.multiprocess']] = server.fork != 1
-            env[HEADERS['wsgi.run_once']] = False
-            env[HEADERS['wsgi.url_scheme']] = b'http'
+            env['wsgi.input'] = IO()
+            env['wsgi.errors'] = errorlog
+            env['wsgi.version'] = (2, 0)
+            env['wsgi.multithread'] = getattr(server, 'threaded', False) # TODO: Temporary hack until marrow.server 1.0 release.
+            env['wsgi.multiprocess'] = server.fork != 1
+            env['wsgi.run_once'] = False
+            env['wsgi.url_scheme'] = 'http' # TODO: Remove unicode_literals.
             
             # env['wsgi.script_name'] = b''
             # env['wsgi.path_info'] = b''
@@ -200,18 +179,21 @@ class HTTPProtocol(Protocol):
                 host, _, path = path.partition(b'/')
                 path = b'/' + path
                 
-                environ[HEADERS['wsgi.url_scheme']] = scheme
-                environ[HEADERS['HTTP_HOST']] = host
+                environ['wsgi.url_scheme'] = scheme
+                environ['HTTP_HOST'] = host
             
-            environ[HEADERS['REQUEST_METHOD']] = line[0]
-            environ[HEADERS['SCRIPT_NAME']] = b""
-            environ[HEADERS['CONTENT_TYPE']] = None
-            environ[HEADERS['PATH_INFO']] = path
-            environ[HEADERS['PARAMETERS']] = param
-            environ[HEADERS['QUERY_STRING']] = query
-            environ[HEADERS['FRAGMENT']] = fragment
-            environ[HEADERS['SERVER_PROTOCOL']] = line[2]
-            environ[HEADERS['CONTENT_LENGTH']] = None
+            # TODO: REQUEST_URI, bytestring.
+            environ['REQUEST_METHOD'] = line[0]
+            environ['CONTENT_TYPE'] = None
+            environ['FRAGMENT'] = fragment
+            environ['SERVER_PROTOCOL'] = line[2]
+            environ['CONTENT_LENGTH'] = None
+            
+            # SCRIPT_NAME, PATH_INFO, PARAMETERS, and QUERY_STRING, unicode -- wsgi.uri_encoding UTF8 fallback iso-8859-1.
+            environ['SCRIPT_NAME'] = b""
+            environ['PATH_INFO'] = path # urldecode
+            environ['PARAMETERS'] = param # urldecode
+            environ['QUERY_STRING'] = query.decode('iso-8859-1')
             
             current, header = None, None
             noprefix = dict(CONTENT_TYPE=True, CONTENT_LENGTH=True)
@@ -227,7 +209,7 @@ class HTTPProtocol(Protocol):
                 
                 header, _, value = line.partition(b': ')
                 current = native(header.replace(b'-', b'_')).upper() # TODO: Unroll the native() logic here.
-                if current not in noprefix: current = HEADERS['HTTP_'] + current
+                if current not in noprefix: current = 'HTTP_' + current
                 environ[current] = value
             
             # TODO: Proxy support.
@@ -236,18 +218,18 @@ class HTTPProtocol(Protocol):
             #     if self.remote_ip is not None:
             #         break
             
-            if environ.get(HEADERS["HTTP_EXPECT"], None) == b"100-continue":
+            if environ.get("HTTP_EXPECT", None) == b"100-continue":
                 self.client.write(b"HTTP/1.1 100 (Continue)\r\n\r\n")
             
-            if environ[HEADERS['CONTENT_LENGTH']] is None:
-                if environ.get(HEADERS['HTTP_TRANSFER_ENCODING'], b'').lower() == b'chunked':
+            if environ['CONTENT_LENGTH'] is None:
+                if environ.get('HTTP_TRANSFER_ENCODING', b'').lower() == b'chunked':
                     self.client.read_until(CRLF, self.body_chunked)
                     return
                 
                 self.work()
                 return
             
-            length = int(environ[HEADERS['CONTENT_LENGTH']])
+            length = int(environ['CONTENT_LENGTH'])
             
             if length > self.client.max_buffer_size:
                 # TODO: Return appropriate HTTP response in addition to logging the error.
@@ -317,7 +299,7 @@ class HTTPProtocol(Protocol):
                     # List iteration and substitution: 4.10248017311
                     # TODO: Remove above note at some point.
                     for i in range(len(headers)):
-                        name, value = headers[i]
+                        name, value = i
                     
                         if not isinstance(name, unicode) and not isinstance(value, unicode):
                             continue
@@ -328,7 +310,7 @@ class HTTPProtocol(Protocol):
                         if isinstance(value, unicode):
                             value = value.encode('iso-8859-1')
                     
-                        headers[i] = (name, value)
+                        i = (name, value)
                 
                 # Canonicalize the names of the headers returned by the application.
                 present = [i[0].lower() for i in headers]
@@ -346,13 +328,13 @@ class HTTPProtocol(Protocol):
                 
                 # TODO: Ensure hop-by-hop and persistence headers are not returned.
                 
-                if env[HEADERS['SERVER_PROTOCOL']] == b"HTTP/1.1" and b'content-length' not in present:
+                if env['SERVER_PROTOCOL'] == b"HTTP/1.1" and b'content-length' not in present:
                     headers.append((b"Transfer-Encoding", b"chunked"))
-                    headers = env[HEADERS['SERVER_PROTOCOL']] + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + dCRLF
+                    headers = env['SERVER_PROTOCOL'] + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + dCRLF
                     self.write(headers, partial(self.write_body_chunked_pedantic if self.protocol.pedantic else self.write_body_chunked, body, iter(body)))
                     return
                 
-                headers = env[HEADERS['SERVER_PROTOCOL']] + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + dCRLF
+                headers = env['SERVER_PROTOCOL'] + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + dCRLF
                 
                 self.write(headers, partial(self.write_body_pedantic if self.protocol.pedantic else self.write_body, body, iter(body)))
             
@@ -424,11 +406,11 @@ class HTTPProtocol(Protocol):
             disconnect = True
             
             if self.pipeline:
-                if env[HEADERS['SERVER_PROTOCOL']] == b'HTTP/1.1':
-                    disconnect = env.get(HEADERS['HTTP_CONNECTION'], None) == b"close"
+                if env['SERVER_PROTOCOL'] == b'HTTP/1.1':
+                    disconnect = env.get('HTTP_CONNECTION', None) == b"close"
                 
-                elif env[HEADERS['CONTENT_LENGTH']] is not None or env[HEADERS['REQUEST_METHOD']] in (b'HEAD', b'GET'):
-                    disconnect = env.get(HEADERS['HTTP_CONNECTION'], b'').lower() != b'keep-alive'
+                elif env['CONTENT_LENGTH'] is not None or env['REQUEST_METHOD'] in (b'HEAD', b'GET'):
+                    disconnect = env.get('HTTP_CONNECTION', b'').lower() != b'keep-alive'
             
             self.finished = False
             
