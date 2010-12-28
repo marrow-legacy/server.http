@@ -1,7 +1,5 @@
 # encoding: utf-8
 
-from __future__ import unicode_literals
-
 import socket
 
 from pprint import pformat
@@ -30,6 +28,7 @@ def echo(request):
 
 class TestHTTP10Protocol(HTTPTestCase):
     arguments = dict(application=echo)
+    maxDiff = None
     
     def test_headers(self):
         response = self.request(protocol=b"HTTP/1.0")
@@ -46,21 +45,24 @@ class TestHTTP10Protocol(HTTPTestCase):
         expect = {
                 'CONTENT_LENGTH': None,
                 'CONTENT_TYPE': None,
-                'FRAGMENT': b'',
-                'HTTP_HOST': b'localhost',
-                'PARAMETERS': b'',
-                'PATH_INFO': b'/',
-                'QUERY_STRING': b'',
-                'REMOTE_ADDR': b'127.0.0.1',
-                'REQUEST_METHOD': b'GET',
-                'SCRIPT_NAME': b'',
-                'SERVER_ADDR': b'127.0.0.1',
-                'SERVER_PROTOCOL': b'HTTP/1.0',
+                'FRAGMENT': '',
+                'HTTP_HOST': 'localhost',
+                'PARAMETERS': u'',
+                'PATH_INFO': u'/',
+                'QUERY_STRING': u'',
+                'REMOTE_ADDR': '127.0.0.1',
+                'REQUEST_METHOD': 'GET',
+                'SCRIPT_NAME': u'',
+                'SERVER_ADDR': '127.0.0.1',
+                'SERVER_PROTOCOL': 'HTTP/1.0',
                 'wsgi.multiprocess': False,
                 'wsgi.multithread': False,
                 'wsgi.run_once': False,
-                'wsgi.url_scheme': b'http',
-                'wsgi.version': (2, 0)
+                'wsgi.url_scheme': 'http',
+                'wsgi.version': (2, 0),
+                'REQUEST_URI': b'/',
+                'wsgi.async': False,
+                'wsgi.uri_encoding': 'utf8'
             }
         
         self.assertEquals(request, expect)

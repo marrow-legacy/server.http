@@ -1,7 +1,5 @@
 # encoding: utf-8
 
-from __future__ import unicode_literals
-
 import socket
 
 from pprint import pformat
@@ -80,22 +78,25 @@ class TestHTTP11Protocol(HTTPTestCase):
         expect = {
                 'CONTENT_LENGTH': None,
                 'CONTENT_TYPE': None,
-                'FRAGMENT': b'',
-                'HTTP_CONNECTION': b'close',
-                'HTTP_HOST': b'localhost',
-                'PARAMETERS': b'',
-                'PATH_INFO': b'/',
-                'QUERY_STRING': b'',
-                'REMOTE_ADDR': b'127.0.0.1',
-                'REQUEST_METHOD': b'GET',
-                'SCRIPT_NAME': b'',
-                'SERVER_ADDR': b'127.0.0.1',
+                'FRAGMENT': '',
+                'HTTP_CONNECTION': 'close',
+                'HTTP_HOST': 'localhost',
+                'PARAMETERS': u'',
+                'PATH_INFO': u'/',
+                'QUERY_STRING': u'',
+                'REMOTE_ADDR': '127.0.0.1',
+                'REQUEST_METHOD': 'GET',
+                'SCRIPT_NAME': u'',
+                'SERVER_ADDR': '127.0.0.1',
                 'SERVER_PROTOCOL': b'HTTP/1.1',
                 'wsgi.multiprocess': False,
                 'wsgi.multithread': False,
                 'wsgi.run_once': False,
-                'wsgi.url_scheme': b'http',
-                'wsgi.version': (2, 0)
+                'wsgi.url_scheme': 'http',
+                'wsgi.version': (2, 0),
+                'REQUEST_URI': b'http://localhost/',
+                'wsgi.async': False,
+                'wsgi.uri_encoding': 'utf8'
             }
         
         self.assertEquals(request, expect)
@@ -117,6 +118,7 @@ class TestHTTP11Protocol(HTTPTestCase):
 
 class TestChunkedHTTP11Protocol(HTTPTestCase):
     arguments = dict(application=chunked)
+    maxDiff = None
     
     def test_chunked(self):
         response = self.request()
@@ -132,28 +134,33 @@ class TestChunkedHTTP11Protocol(HTTPTestCase):
         expect = {
                 'CONTENT_LENGTH': None,
                 'CONTENT_TYPE': None,
-                'FRAGMENT': b'',
-                'HTTP_HOST': b'localhost',
-                'PARAMETERS': b'',
-                'PATH_INFO': b'/',
-                'QUERY_STRING': b'',
-                'REMOTE_ADDR': b'127.0.0.1',
-                'REQUEST_METHOD': b'GET',
-                'SCRIPT_NAME': b'',
-                'SERVER_ADDR': b'127.0.0.1',
+                'FRAGMENT': '',
+                'HTTP_HOST': 'localhost',
+                'PARAMETERS': u'',
+                'PATH_INFO': u'/',
+                'QUERY_STRING': u'',
+                'REMOTE_ADDR': '127.0.0.1',
+                'REQUEST_METHOD': 'GET',
+                'SCRIPT_NAME': u'',
+                'SERVER_ADDR': '127.0.0.1',
                 'SERVER_PROTOCOL': b'HTTP/1.1',
                 'wsgi.multiprocess': False,
                 'wsgi.multithread': False,
                 'wsgi.run_once': False,
-                'wsgi.url_scheme': b'http',
-                'wsgi.version': (2, 0)
+                'wsgi.url_scheme': 'http',
+                'wsgi.version': (2, 0),
+                'REQUEST_URI': b'http://localhost/',
+                'wsgi.async': False,
+                'wsgi.uri_encoding': 'utf8'
             }
         
+        print pformat(request)
         self.assertEquals(request, expect)
 
 
 class TestHTTP11BodyProtocol(HTTPTestCase):
     arguments = dict(application=chunked)
+    maxDiff = None
     
     def test_normal(self):
         body = b"Hello world!"
@@ -168,23 +175,26 @@ class TestHTTP11BodyProtocol(HTTPTestCase):
         request = eval(response.body)
         
         expect = {
-                'CONTENT_LENGTH': b"12",
+                'CONTENT_LENGTH': "12",
                 'CONTENT_TYPE': None,
-                'FRAGMENT': b'',
-                'HTTP_HOST': b'localhost',
-                'PARAMETERS': b'',
-                'PATH_INFO': b'/',
-                'QUERY_STRING': b'',
-                'REMOTE_ADDR': b'127.0.0.1',
-                'REQUEST_METHOD': b'PUT',
-                'SCRIPT_NAME': b'',
-                'SERVER_ADDR': b'127.0.0.1',
+                'FRAGMENT': '',
+                'HTTP_HOST': 'localhost',
+                'PARAMETERS': u'',
+                'PATH_INFO': u'/',
+                'QUERY_STRING': u'',
+                'REMOTE_ADDR': '127.0.0.1',
+                'REQUEST_METHOD': 'PUT',
+                'SCRIPT_NAME': u'',
+                'SERVER_ADDR': '127.0.0.1',
                 'SERVER_PROTOCOL': b'HTTP/1.1',
                 'wsgi.multiprocess': False,
                 'wsgi.multithread': False,
                 'wsgi.run_once': False,
-                'wsgi.url_scheme': b'http',
+                'wsgi.url_scheme': 'http',
                 'wsgi.version': (2, 0),
+                'REQUEST_URI': b'http://localhost/',
+                'wsgi.async': False,
+                'wsgi.uri_encoding': 'utf8',
                 'wsgi.input': b"Hello world!"
             }
         
@@ -205,23 +215,26 @@ class TestHTTP11BodyProtocol(HTTPTestCase):
         expect = {
                 'CONTENT_LENGTH': None,
                 'CONTENT_TYPE': None,
-                'FRAGMENT': b'',
-                'HTTP_HOST': b'localhost',
-                'HTTP_TRANSFER_ENCODING': b'chunked',
-                'PARAMETERS': b'',
-                'PATH_INFO': b'/',
-                'QUERY_STRING': b'',
-                'REMOTE_ADDR': b'127.0.0.1',
-                'REQUEST_METHOD': b'PUT',
-                'SCRIPT_NAME': b'',
-                'SERVER_ADDR': b'127.0.0.1',
+                'FRAGMENT': '',
+                'HTTP_TRANSFER_ENCODING': 'chunked',
+                'HTTP_HOST': 'localhost',
+                'PARAMETERS': u'',
+                'PATH_INFO': u'/',
+                'QUERY_STRING': u'',
+                'REMOTE_ADDR': '127.0.0.1',
+                'REQUEST_METHOD': 'PUT',
+                'SCRIPT_NAME': u'',
+                'SERVER_ADDR': '127.0.0.1',
                 'SERVER_PROTOCOL': b'HTTP/1.1',
-                'wsgi.input': b"Hello world!",
                 'wsgi.multiprocess': False,
                 'wsgi.multithread': False,
                 'wsgi.run_once': False,
-                'wsgi.url_scheme': b'http',
+                'wsgi.url_scheme': 'http',
                 'wsgi.version': (2, 0),
+                'REQUEST_URI': b'http://localhost/',
+                'wsgi.async': False,
+                'wsgi.uri_encoding': 'utf8',
+                'wsgi.input': b'Hello world!'
             }
         
         self.assertEquals(request, expect)

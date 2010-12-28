@@ -19,6 +19,16 @@ try:
 except ImportError:
     from rfc822 import formatdate
 
+try:
+    from urllib import unquote_plus as unquote
+
+except:
+    from urllib.parse import unquote_plus as unquote_
+    
+    def unquote(t):
+        """Python 3 requires unquote to be passed unicode, but unicode characters may be encoded using quoted bytes!"""
+        return unquote_(t.decode('iso-8859-1')).encode('iso-8859-1')
+
 
 __all__ = ['HTTPProtocol', 'HTTPServer']
 log = logging.getLogger(__name__)
@@ -42,14 +52,12 @@ except:
 # TODO: Separate out into marrow.util.
 def bytestring(s, encoding="iso-8859-1", fallback="iso-8859-1"):
     if not isinstance(s, unicode):
-        fname, line = getouterframes(currentframe())[1][1:3]
-        log.warn("Value is already byte string.\n%s:%d", fname, line)
         return s
     
     try:
         s.encode(encoding)
     
-    except UnicodeDecodeError:
+    except UnicodeError:
         s.encode(fallback)
 
 
@@ -60,11 +68,51 @@ def native(s, encoding="iso-8859-1", fallback="iso-8859-1"):
         log.warn("Value is already native string.\n%s:%d", fname, line)
         return s
     
-    try:
-        return s.encode(encoding)
+    if str is unicode:
+        try:
+            return s.encode(encoding)
+        
+        except UnicodeError:
+            if fallback is None: raise
+            return s.encode(fallback)
     
-    except:
-        return s.encode(fallback)
+    try:
+        return s.decode(encoding)
+    
+    except UnicodeError:
+        if fallback is None: raise
+        return s.decode(fallback)
+
+
+# TODO: Separate out into marrow.util.
+def uvalues(a, encoding="iso-8859-1", fallback="iso-8859-1"):
+    try:
+        v = []
+        
+        for s in a:
+            if isinstance(s, unicode):
+                fname, line = getouterframes(currentframe())[1][1:3]
+                log.warn("Value is already unicode.\n%r\n%s:%d", a, fname, line)
+                v.append(s)
+                continue
+            
+            v.append(s.decode(encoding))
+        
+        return encoding, v
+    
+    except UnicodeError:
+        v = []
+        
+        for s in a:
+            if isinstance(s, unicode):
+                fname, line = getouterframes(currentframe())[1][1:3]
+                log.warn("Value is already unicode.\n%r\n%s:%d", a, fname, line)
+                v.append(s)
+                continue
+            
+            v.apend(s.decode(fallback))
+        
+        return fallback, v
 
 
 # TODO: Separate out into marrow.util.
@@ -97,16 +145,17 @@ errorlog = LoggingFile()
 
 
 class HTTPProtocol(Protocol):
-    def __init__(self, server, testing, application, ingress=None, egress=None, pedantic=True, **options):
+    def __init__(self, server, testing, application, ingress=None, egress=None, pedantic=True, encoding="utf8", **options):
         super(HTTPProtocol, self).__init__(server, testing, **options)
         
         self.application = application
         self.ingress = ingress if ingress else []
         self.egress = egress if egress else []
         self.pedantic = pedantic
+        self.encoding = encoding
         
-        self._name = native(server.name)
-        self._addr = native(server.address[0]) if isinstance(server.address, tuple) else ''
+        self._name = server.name
+        self._addr = server.address[0] if isinstance(server.address, tuple) else ''
         self._port = str(server.address[1]) if isinstance(server.address, tuple) else '80'
     
     def accept(self, client):
@@ -119,10 +168,11 @@ class HTTPProtocol(Protocol):
             self.client = client
             
             env = dict()
-            env['REMOTE_ADDR'] = native(client.address[0])
-            env['SERVER_NAME'] = native(protocol._name)
-            env['SERVER_ADDR'] = native(protocol._addr)
-            env['SERVER_PORT'] = native(protocol._port)
+            env['REMOTE_ADDR'] = client.address[0]
+            env['SERVER_NAME'] = protocol._name
+            env['SERVER_ADDR'] = protocol._addr
+            env['SERVER_PORT'] = protocol._port
+            env['SCRIPT_NAME'] = unicode()
             
             env['wsgi.input'] = IO()
             env['wsgi.errors'] = errorlog
@@ -130,7 +180,8 @@ class HTTPProtocol(Protocol):
             env['wsgi.multithread'] = getattr(server, 'threaded', False) # TODO: Temporary hack until marrow.server 1.0 release.
             env['wsgi.multiprocess'] = server.fork != 1
             env['wsgi.run_once'] = False
-            env['wsgi.url_scheme'] = 'http' # TODO: Remove unicode_literals.
+            env['wsgi.url_scheme'] = 'http'
+            env['wsgi.async'] = False # TODO
             
             # env['wsgi.script_name'] = b''
             # env['wsgi.path_info'] = b''
@@ -144,7 +195,8 @@ class HTTPProtocol(Protocol):
             client.read_until(dCRLF, self.headers)
         
         def write(self, chunk, callback=None):
-            assert not self.finished, "Attempt to write to completed request."
+            if self.finished:
+                raise Exception("Attempt to write to completed request.")
             
             if not self.client.closed():
                 self.client.write(chunk, callback)
@@ -161,51 +213,58 @@ class HTTPProtocol(Protocol):
             """Process HTTP headers, and pull in the body as needed."""
             
             # log.debug("Recieved: %r", data)
+            self.environ = environ = dict(self.environ_template)
             
             line = data[:data.index(CRLF)].split()
+            environ['REQUEST_URI'] = line[1]
+            
             remainder, _, fragment = line[1].partition(b'#')
             remainder, _, query = remainder.partition(b'?')
             path, _, param = remainder.partition(b';')
-            
-            self.environ = environ = dict(self.environ_template)
             
             if b"://" in path:
                 scheme, _, path = path.partition(b'://')
                 host, _, path = path.partition(b'/')
                 path = b'/' + path
                 
-                environ['wsgi.url_scheme'] = scheme
+                environ['wsgi.url_scheme'] = native(scheme)
                 environ['HTTP_HOST'] = host
             
-            # TODO: REQUEST_URI, bytestring.
             environ['REQUEST_METHOD'] = line[0]
             environ['CONTENT_TYPE'] = None
             environ['FRAGMENT'] = fragment
             environ['SERVER_PROTOCOL'] = line[2]
             environ['CONTENT_LENGTH'] = None
             
-            # SCRIPT_NAME, PATH_INFO, PARAMETERS, and QUERY_STRING, unicode -- wsgi.uri_encoding UTF8 fallback iso-8859-1.
-            environ['SCRIPT_NAME'] = b""
-            environ['PATH_INFO'] = path # urldecode
-            environ['PARAMETERS'] = param # urldecode
-            environ['QUERY_STRING'] = query.decode('iso-8859-1')
+            environ['PATH_INFO'] = unquote(path)
+            environ['PARAMETERS'] = param
+            environ['QUERY_STRING'] = query
+            
+            _ = ('PATH_INFO', 'PARAMETERS', 'QUERY_STRING')
+            environ['wsgi.uri_encoding'], __ = uvalues([environ[i] for i in _], self.protocol.encoding)
+            print repr(__)
+            environ.update(zip(_, __))
+            del _, __
             
             current, header = None, None
             noprefix = dict(CONTENT_TYPE=True, CONTENT_LENGTH=True)
             
+            # All keys and values are native strings.
+            data = native(data) if str is unicode else data
+            
             for line in data.split(CRLF)[1:]:
                 if not line: break
-                assert current is not None or line[0] != b' ' # TODO: Do better than dying abruptly.
+                assert current is not None or line[0] != ' ' # TODO: Do better than dying abruptly.
                 
-                if line[0] == b' ':
+                if line[0] == ' ':
                     _ = line.lstrip()
                     environ[current] += _
                     continue
                 
-                header, _, value = line.partition(b': ')
-                current = native(header.replace(b'-', b'_')).upper() # TODO: Unroll the native() logic here.
+                header, _, value = line.partition(': ')
+                current = (native(header) if str is unicode else header).replace('-', '_').upper()
                 if current not in noprefix: current = 'HTTP_' + current
-                environ[current] = value
+                environ[current] = native(value) if str is unicode else value
             
             # TODO: Proxy support.
             # for h in ("X-Real-Ip", "X-Real-IP", "X-Forwarded-For"):
@@ -213,11 +272,11 @@ class HTTPProtocol(Protocol):
             #     if self.remote_ip is not None:
             #         break
             
-            if environ.get("HTTP_EXPECT", None) == b"100-continue":
+            if environ.get("HTTP_EXPECT", None) == "100-continue":
                 self.client.write(b"HTTP/1.1 100 (Continue)\r\n\r\n")
             
             if environ['CONTENT_LENGTH'] is None:
-                if environ.get('HTTP_TRANSFER_ENCODING', b'').lower() == b'chunked':
+                if environ.get('HTTP_TRANSFER_ENCODING', '').lower() == 'chunked':
                     self.client.read_until(CRLF, self.body_chunked)
                     return
                 
@@ -294,7 +353,7 @@ class HTTPProtocol(Protocol):
                     # List iteration and substitution: 4.10248017311
                     # TODO: Remove above note at some point.
                     for i in range(len(headers)):
-                        name, value = i
+                        name, value = headers[i]
                     
                         if not isinstance(name, unicode) and not isinstance(value, unicode):
                             continue
@@ -305,7 +364,7 @@ class HTTPProtocol(Protocol):
                         if isinstance(value, unicode):
                             value = value.encode('iso-8859-1')
                     
-                        i = (name, value)
+                        headers[i] = (name, value)
                 
                 # Canonicalize the names of the headers returned by the application.
                 present = [i[0].lower() for i in headers]
