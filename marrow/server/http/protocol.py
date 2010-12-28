@@ -261,9 +261,9 @@ class HTTPProtocol(Protocol):
                     continue
                 
                 header, _, value = line.partition(': ')
-                current = (native(header) if str is unicode else header).replace('-', '_').upper()
+                current = header.replace('-', '_').upper()
                 if current not in noprefix: current = 'HTTP_' + current
-                environ[current] = native(value) if str is unicode else value
+                environ[current] = value
             
             # TODO: Proxy support.
             # for h in ("X-Real-Ip", "X-Real-IP", "X-Forwarded-For"):
