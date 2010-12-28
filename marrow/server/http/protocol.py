@@ -242,7 +242,6 @@ class HTTPProtocol(Protocol):
             
             _ = ('PATH_INFO', 'PARAMETERS', 'QUERY_STRING')
             environ['wsgi.uri_encoding'], __ = uvalues([environ[i] for i in _], self.protocol.encoding)
-            print repr(__)
             environ.update(zip(_, __))
             del _, __
             
@@ -460,11 +459,11 @@ class HTTPProtocol(Protocol):
             disconnect = True
             
             if self.pipeline:
-                if env['SERVER_PROTOCOL'] == b'HTTP/1.1':
-                    disconnect = env.get('HTTP_CONNECTION', None) == b"close"
+                if env['SERVER_PROTOCOL'] == 'HTTP/1.1':
+                    disconnect = env.get('HTTP_CONNECTION', None) == "close"
                 
-                elif env['CONTENT_LENGTH'] is not None or env['REQUEST_METHOD'] in (b'HEAD', b'GET'):
-                    disconnect = env.get('HTTP_CONNECTION', b'').lower() != b'keep-alive'
+                elif env['CONTENT_LENGTH'] is not None or env['REQUEST_METHOD'] in ('HEAD', 'GET'):
+                    disconnect = env.get('HTTP_CONNECTION', '').lower() != 'keep-alive'
             
             self.finished = False
             
