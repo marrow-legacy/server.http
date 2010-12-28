@@ -1,5 +1,6 @@
 # encoding: utf-8
 
+import logging
 import sys
 import cgi
 
@@ -20,7 +21,7 @@ except ImportError:
 
 
 __all__ = ['HTTPProtocol', 'HTTPServer']
-log = __import__('logging').getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
 CRLF = b"\r\n"
@@ -92,7 +93,7 @@ class LoggingFile(object): # pragma: no cover
     readline = next
     readlines = next
 
-errorlog = LoggingFile(__import__('logging').getLogger('wsgi.errors'))
+errorlog = LoggingFile()
 
 
 class HTTPProtocol(Protocol):
@@ -104,15 +105,9 @@ class HTTPProtocol(Protocol):
         self.egress = egress if egress else []
         self.pedantic = pedantic
         
-        if sys.version_info < (3, 0):
-            self._name = server.name
-            self._addr = server.address[0] if isinstance(server.address, tuple) else b''
-            self._port = str(server.address[1]) if isinstance(server.address, tuple) else b'80'
-        
-        else:
-            self._name = server.name.encode()
-            self._addr = (server.address[0] if isinstance(server.address, tuple) else b'').encode()
-            self._port = (str(server.address[1]) if isinstance(server.address, tuple) else b'80').encode()
+        self._name = native(server.name)
+        self._addr = native(server.address[0]) if isinstance(server.address, tuple) else ''
+        self._port = str(server.address[1]) if isinstance(server.address, tuple) else '80'
     
     def accept(self, client):
         self.Connection(self.server, self, client)
