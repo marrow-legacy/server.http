@@ -90,12 +90,6 @@ def uvalues(a, encoding="iso-8859-1", fallback="iso-8859-1"):
         v = []
         
         for s in a:
-            if isinstance(s, unicode):
-                fname, line = getouterframes(currentframe())[1][1:3]
-                log.warn("Value is already unicode.\n%r\n%s:%d", a, fname, line)
-                v.append(s)
-                continue
-            
             v.append(s.decode(encoding))
         
         return encoding, v
@@ -104,12 +98,6 @@ def uvalues(a, encoding="iso-8859-1", fallback="iso-8859-1"):
         v = []
         
         for s in a:
-            if isinstance(s, unicode):
-                fname, line = getouterframes(currentframe())[1][1:3]
-                log.warn("Value is already unicode.\n%r\n%s:%d", a, fname, line)
-                v.append(s)
-                continue
-            
             v.apend(s.decode(fallback))
         
         return fallback, v
