@@ -8,7 +8,7 @@ import signal
 import subprocess
 
 from marrow.io.ioloop import IOLoop
-from marrow.script import execute
+from marrow.script import execute, script, describe
 from marrow.server.http import HTTPServer
 
 
@@ -17,7 +17,17 @@ def hello(request):
     return b'200 OK', [(b'Content-Length', 13), (b'Content-Type', b'text/plain')], [b'Hello world!\n']
 
 
-def main(host="127.0.0.1", port=8888):
+@script(
+        title="Marrow HTTPD Benchmark",
+        version="1.0",
+        copyright="Copyright 2010 Alice Bevan-McGregor"
+    )
+@describe(
+        host="The interface to bind to, defaults to \"127.0.0.1\".",
+        port="The port number to bind to, defaults to 8888.",
+        pedantic="Enable strict WSGI 2 compliance checks."
+    )
+def main(host="127.0.0.1", port=8888, pedantic=False):
     """A simple benchmark of Marrow's HTTP server.
     
     This script requires that ApacheBench (ab) be installed.
@@ -29,7 +39,7 @@ def main(host="127.0.0.1", port=8888):
     python -c 'import pstats; pstats.Stats("/tmp/prof").strip_dirs().sort_stats("time").print_callers(20)'
     """
     
-    server = HTTPServer(host=host, port=port, application=hello)
+    server = HTTPServer(host=host, port=port, application=hello, pedantic=pedantic)
     
     def handle_sigchld(sig, frame):
         server.io.add_callback(server.stop)
