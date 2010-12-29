@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
-from __future__ import unicode_literals
-from __future__ import print_function
-
 import signal
 import subprocess
 
@@ -23,8 +20,8 @@ def hello(request):
         copyright="Copyright 2010 Alice Bevan-McGregor"
     )
 @describe(
-        host="The interface to bind to, defaults to \"127.0.0.1\".",
-        port="The port number to bind to, defaults to 8888.",
+        host="The interface to bind to.\nDefault: \"127.0.0.1\"",
+        port="The port number to bind to.\nDefault: 8888",
         pedantic="Enable strict WSGI 2 compliance checks."
     )
 def main(host="127.0.0.1", port=8888, pedantic=False):
