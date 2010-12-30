@@ -2,6 +2,7 @@
 
 import socket
 
+from functools import partial
 from pprint import pformat
 
 from marrow.server.http.testing import HTTPTestCase, CRLF, EOH
@@ -12,22 +13,11 @@ from marrow.util.compat import unicode
 log = __import__('logging').getLogger(__name__)
 
 
-
-def echo(request):
-    del request['SERVER_NAME']
-    del request['SERVER_PORT']
-    del request['wsgi.errors']
-    del request['wsgi.input']
-    
-    result = unicode(pformat(request)).encode('utf8')
-    return b'200 OK', [
-            (b'Content-Type', b'text/plain; charset=utf8'),
-            (b'Content-Length', unicode(len(result)).encode('ascii'))
-        ], [result]
+from applications import echo
 
 
 class TestHTTP10Protocol(HTTPTestCase):
-    arguments = dict(application=echo)
+    arguments = dict(application=partial(echo, False))
     maxDiff = None
     
     def test_headers(self):
@@ -47,12 +37,12 @@ class TestHTTP10Protocol(HTTPTestCase):
                 'CONTENT_TYPE': None,
                 'FRAGMENT': '',
                 'HTTP_HOST': 'localhost',
-                'PARAMETERS': u'',
-                'PATH_INFO': u'/',
-                'QUERY_STRING': u'',
+                'PARAMETERS': unicode(),
+                'PATH_INFO': b'/'.decode('iso-8859-1'),
+                'QUERY_STRING': unicode(),
                 'REMOTE_ADDR': '127.0.0.1',
                 'REQUEST_METHOD': 'GET',
-                'SCRIPT_NAME': u'',
+                'SCRIPT_NAME': unicode(),
                 'SERVER_ADDR': '127.0.0.1',
                 'SERVER_PROTOCOL': 'HTTP/1.0',
                 'wsgi.multiprocess': False,

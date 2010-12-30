@@ -2,6 +2,7 @@
 
 import socket
 
+from functools import partial
 from pprint import pformat
 
 from marrow.server.http.testing import HTTPTestCase, CRLF, EOH
@@ -12,48 +13,11 @@ from marrow.util.compat import unicode
 log = __import__('logging').getLogger(__name__)
 
 
-def clean(request):
-    del request['SERVER_NAME']
-    del request['SERVER_PORT']
-    del request['wsgi.errors']
-    
-    request['wsgi.input'] = request['wsgi.input'].read()
-    
-    if not request['wsgi.input']:
-        del request['wsgi.input']
-
-
-def echo(request):
-    clean(request)
-    result = unicode(pformat(request)).encode('utf8')
-    log.info("Result: %r", result)
-    return b'200 OK', [
-            (b'Content-Type', b'text/plain; charset=utf8'),
-            (b'Content-Length', unicode(len(result)).encode('ascii'))
-        ], [result]
-
-
-def chunked(request):
-    clean(request)
-    result = unicode(pformat(request)).encode('utf8')
-    return b'200 OK', [
-            (b'Content-Type', b'text/plain; charset=utf8'),
-        ], result.split(b"\n")
-
-
-def body_echo(request):
-    clean(request)
-    
-    headers = [(b'Content-Type', b'text/plain; charset=utf8')]
-    
-    if 'HTTP_CONTENT_LENGTH' in request:
-        headers.append((b'Content-Length', unicode(len(request['wsgi.input'])).encode('ascii')))
-    
-    return b'200 OK', headers, [request['wsgi.input']]
+from applications import *
 
 
 class TestHTTP11Protocol(HTTPTestCase):
-    arguments = dict(application=echo)
+    arguments = dict(application=partial(echo, False))
     
     def test_headers(self):
         response = self.request(headers=[(b'Connection', b'close')])
@@ -81,14 +45,14 @@ class TestHTTP11Protocol(HTTPTestCase):
                 'FRAGMENT': '',
                 'HTTP_CONNECTION': 'close',
                 'HTTP_HOST': 'localhost',
-                'PARAMETERS': u'',
-                'PATH_INFO': u'/',
-                'QUERY_STRING': u'',
+                'PARAMETERS': unicode(),
+                'PATH_INFO': b'/'.decode('iso-8859-1'),
+                'QUERY_STRING': unicode(),
                 'REMOTE_ADDR': '127.0.0.1',
                 'REQUEST_METHOD': 'GET',
-                'SCRIPT_NAME': u'',
+                'SCRIPT_NAME': unicode(),
                 'SERVER_ADDR': '127.0.0.1',
-                'SERVER_PROTOCOL': b'HTTP/1.1',
+                'SERVER_PROTOCOL': 'HTTP/1.1',
                 'wsgi.multiprocess': False,
                 'wsgi.multithread': False,
                 'wsgi.run_once': False,
@@ -117,7 +81,7 @@ class TestHTTP11Protocol(HTTPTestCase):
 
 
 class TestChunkedHTTP11Protocol(HTTPTestCase):
-    arguments = dict(application=chunked)
+    arguments = dict(application=partial(echo, True))
     maxDiff = None
     
     def test_chunked(self):
@@ -136,14 +100,14 @@ class TestChunkedHTTP11Protocol(HTTPTestCase):
                 'CONTENT_TYPE': None,
                 'FRAGMENT': '',
                 'HTTP_HOST': 'localhost',
-                'PARAMETERS': u'',
-                'PATH_INFO': u'/',
-                'QUERY_STRING': u'',
+                'PARAMETERS': unicode(),
+                'PATH_INFO': b'/'.decode('iso-8859-1'),
+                'QUERY_STRING': unicode(),
                 'REMOTE_ADDR': '127.0.0.1',
                 'REQUEST_METHOD': 'GET',
-                'SCRIPT_NAME': u'',
+                'SCRIPT_NAME': unicode(),
                 'SERVER_ADDR': '127.0.0.1',
-                'SERVER_PROTOCOL': b'HTTP/1.1',
+                'SERVER_PROTOCOL': 'HTTP/1.1',
                 'wsgi.multiprocess': False,
                 'wsgi.multithread': False,
                 'wsgi.run_once': False,
@@ -154,12 +118,11 @@ class TestChunkedHTTP11Protocol(HTTPTestCase):
                 'wsgi.uri_encoding': 'utf8'
             }
         
-        print pformat(request)
         self.assertEquals(request, expect)
 
 
 class TestHTTP11BodyProtocol(HTTPTestCase):
-    arguments = dict(application=chunked)
+    arguments = dict(application=partial(echo, True))
     maxDiff = None
     
     def test_normal(self):
@@ -179,14 +142,14 @@ class TestHTTP11BodyProtocol(HTTPTestCase):
                 'CONTENT_TYPE': None,
                 'FRAGMENT': '',
                 'HTTP_HOST': 'localhost',
-                'PARAMETERS': u'',
-                'PATH_INFO': u'/',
-                'QUERY_STRING': u'',
+                'PARAMETERS': unicode(),
+                'PATH_INFO': b'/'.decode('iso-8859-1'),
+                'QUERY_STRING': unicode(),
                 'REMOTE_ADDR': '127.0.0.1',
                 'REQUEST_METHOD': 'PUT',
-                'SCRIPT_NAME': u'',
+                'SCRIPT_NAME': unicode(),
                 'SERVER_ADDR': '127.0.0.1',
-                'SERVER_PROTOCOL': b'HTTP/1.1',
+                'SERVER_PROTOCOL': 'HTTP/1.1',
                 'wsgi.multiprocess': False,
                 'wsgi.multithread': False,
                 'wsgi.run_once': False,
@@ -218,14 +181,14 @@ class TestHTTP11BodyProtocol(HTTPTestCase):
                 'FRAGMENT': '',
                 'HTTP_TRANSFER_ENCODING': 'chunked',
                 'HTTP_HOST': 'localhost',
-                'PARAMETERS': u'',
-                'PATH_INFO': u'/',
-                'QUERY_STRING': u'',
+                'PARAMETERS': unicode(),
+                'PATH_INFO': b'/'.decode('iso-8859-1'),
+                'QUERY_STRING': unicode(),
                 'REMOTE_ADDR': '127.0.0.1',
                 'REQUEST_METHOD': 'PUT',
-                'SCRIPT_NAME': u'',
+                'SCRIPT_NAME': unicode(),
                 'SERVER_ADDR': '127.0.0.1',
-                'SERVER_PROTOCOL': b'HTTP/1.1',
+                'SERVER_PROTOCOL': 'HTTP/1.1',
                 'wsgi.multiprocess': False,
                 'wsgi.multithread': False,
                 'wsgi.run_once': False,

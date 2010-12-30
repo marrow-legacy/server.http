@@ -37,7 +37,7 @@ log = logging.getLogger(__name__)
 CRLF = b"\r\n"
 dCRLF = b"\r\n\r\n"
 HTTP_INTERNAL_ERROR = b" 500 Internal Server Error\r\nContent-Type: text/plain\r\nContent-Length: 48\r\n\r\nThe server encountered an unrecoverable error.\r\n"
-__versionstring__ = b'marrow.httpd/' + release.release
+__versionstring__ = b'marrow.httpd/' + release.release.encode('iso-8859-1')
 
 
 
@@ -70,11 +70,11 @@ def native(s, encoding="iso-8859-1", fallback="iso-8859-1"):
     
     if str is unicode:
         try:
-            return s.encode(encoding)
+            return s.decode(encoding)
         
         except UnicodeError:
             if fallback is None: raise
-            return s.encode(fallback)
+            return s.decode(fallback)
     
     try:
         return s.decode(encoding)
@@ -82,6 +82,8 @@ def native(s, encoding="iso-8859-1", fallback="iso-8859-1"):
     except UnicodeError:
         if fallback is None: raise
         return s.decode(fallback)
+
+nCRLF = native(CRLF)
 
 
 # TODO: Separate out into marrow.util.
@@ -218,17 +220,17 @@ class HTTPProtocol(Protocol):
                 environ['wsgi.url_scheme'] = native(scheme)
                 environ['HTTP_HOST'] = host
             
-            environ['REQUEST_METHOD'] = line[0]
+            environ['REQUEST_METHOD'] = native(line[0])
             environ['CONTENT_TYPE'] = None
             environ['FRAGMENT'] = fragment
-            environ['SERVER_PROTOCOL'] = line[2]
+            environ['SERVER_PROTOCOL'] = native(line[2])
             environ['CONTENT_LENGTH'] = None
             
             environ['PATH_INFO'] = unquote(path)
             environ['PARAMETERS'] = param
             environ['QUERY_STRING'] = query
             
-            _ = ('PATH_INFO', 'PARAMETERS', 'QUERY_STRING')
+            _ = ('PATH_INFO', 'PARAMETERS', 'QUERY_STRING', 'FRAGMENT')
             environ['wsgi.uri_encoding'], __ = uvalues([environ[i] for i in _], self.protocol.encoding)
             environ.update(zip(_, __))
             del _, __
@@ -239,7 +241,7 @@ class HTTPProtocol(Protocol):
             # All keys and values are native strings.
             data = native(data) if str is unicode else data
             
-            for line in data.split(CRLF)[1:]:
+            for line in data.split(nCRLF)[1:]:
                 if not line: break
                 assert current is not None or line[0] != ' ' # TODO: Do better than dying abruptly.
                 
@@ -369,19 +371,19 @@ class HTTPProtocol(Protocol):
                 
                 # TODO: Ensure hop-by-hop and persistence headers are not returned.
                 
-                if env['SERVER_PROTOCOL'] == b"HTTP/1.1" and b'content-length' not in present:
+                if env['SERVER_PROTOCOL'] == "HTTP/1.1" and b'content-length' not in present:
                     headers.append((b"Transfer-Encoding", b"chunked"))
-                    headers = env['SERVER_PROTOCOL'] + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + dCRLF
+                    headers = env['SERVER_PROTOCOL'].encode('iso-8859-1') + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + dCRLF
                     self.write(headers, partial(self.write_body_chunked_pedantic if self.protocol.pedantic else self.write_body_chunked, body, iter(body)))
                     return
                 
-                headers = env['SERVER_PROTOCOL'] + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + dCRLF
+                headers = env['SERVER_PROTOCOL'].encode('iso-8859-1') + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + dCRLF
                 
                 self.write(headers, partial(self.write_body_pedantic if self.protocol.pedantic else self.write_body, body, iter(body)))
             
             except:
                 log.exception("Unhandled application exception.")
-                self.write(env['SERVER_PROTOCOL'] + HTTP_INTERNAL_ERROR, self.finish)
+                self.write(env['SERVER_PROTOCOL'].encode('iso-8859-1') + HTTP_INTERNAL_ERROR, self.finish)
         
         def write_body_pedantic(self, original, body):
             try:

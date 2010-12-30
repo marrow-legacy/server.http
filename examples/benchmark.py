@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # encoding: utf-8
 
+import sys
+import cProfile
 import signal
 import subprocess
 
@@ -22,31 +24,42 @@ def hello(request):
 @describe(
         host="The interface to bind to.\nDefault: \"127.0.0.1\"",
         port="The port number to bind to.\nDefault: 8888",
-        pedantic="Enable strict WSGI 2 compliance checks."
+        pedantic="Enable strict WSGI 2 compliance checks.",
+        profile="If enabled, profiling results will be saved to \"results.prof\"."
     )
-def main(host="127.0.0.1", port=8888, pedantic=False):
+def main(host="127.0.0.1", port=8888, pedantic=False, profile=False):
     """A simple benchmark of Marrow's HTTP server.
     
     This script requires that ApacheBench (ab) be installed.
     Based on the simple benchmark for Tornado.
     
-    Running with profiling:
+    If profiling is enabled, you can examine the results by running:
     
-    python -m cProfile -o /tmp/prof benchmark.py
     python -c 'import pstats; pstats.Stats("/tmp/prof").strip_dirs().sort_stats("time").print_callers(20)'
     """
     
-    server = HTTPServer(host=host, port=port, application=hello, pedantic=pedantic)
+    def do():
+        server = HTTPServer(host=host, port=port, application=hello, pedantic=pedantic)
+        
+        def handle_sigchld(sig, frame):
+            server.io.add_callback(server.stop)
+        
+        signal.signal(signal.SIGCHLD, handle_sigchld)
+        
+        server.start(testing=IOLoop.instance())
+        proc = subprocess.Popen("ab -n 10000 -c 25 http://%s:%d/" % (host, port), shell=True)
+        server.io.start()
     
-    def handle_sigchld(sig, frame):
-        server.io.add_callback(server.stop)
+    try:
+        if not profile:
+            do()
     
-    signal.signal(signal.SIGCHLD, handle_sigchld)
+        else:
+            cProfile.runctx('do()', globals(), locals(), 'results.prof')
+            sys.stdout.write(b"\nProfiling results written to: results.prof\n\n")
     
-    
-    server.start(testing=IOLoop.instance())
-    proc = subprocess.Popen("ab -n 10000 -c 25 http://%s:%d/" % (host, port), shell=True)
-    server.io.start()
+    except KeyboardInterrupt:
+        sys.stdout.write(b"\nBenchmark cancelled.\n\n")
 
 
 

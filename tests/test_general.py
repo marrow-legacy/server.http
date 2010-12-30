@@ -14,9 +14,7 @@ from marrow.util.compat import unicode
 log = __import__('logging').getLogger(__name__)
 
 
-
-def die(request):
-    1/0
+from applications import die
 
 
 class TestHTTPProtocolGeneral(HTTPTestCase):
