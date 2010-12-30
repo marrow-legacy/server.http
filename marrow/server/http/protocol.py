@@ -64,8 +64,8 @@ def bytestring(s, encoding="iso-8859-1", fallback="iso-8859-1"):
 # TODO: Separate out into marrow.util.
 def native(s, encoding="iso-8859-1", fallback="iso-8859-1"):
     if isinstance(s, str):
-        fname, line = getouterframes(currentframe())[1][1:3]
-        log.warn("Value is already native string.\n%s:%d", fname, line)
+        # fname, line = getouterframes(currentframe())[1][1:3]
+        # log.warn("Value is already native string.\n%s:%d", fname, line)
         return s
     
     if str is unicode:
