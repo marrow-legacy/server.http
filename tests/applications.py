@@ -7,6 +7,10 @@ from pprint import pformat
 from marrow.util.compat import unicode
 
 
+def hello_unicode(request):
+    return b"200 OK".encode('iso-8859-1'), [(b'Content-Length'.encode('iso-8859-1'), b'0'.encode('iso-8859-1'))], []
+
+
 def prune(request, input=False):
     """A helper function to clean the request of un-testable variables."""
     del request['SERVER_NAME']
@@ -21,6 +25,14 @@ def prune(request, input=False):
         
         if not request['wsgi.input']:
             del request['wsgi.input']
+
+
+def generator(request):
+    def inner():
+        for i in range(10):
+            yield str(i)
+    
+    return b"200 OK", [(b'Content-Length', b'10')], inner()
 
 
 def die(request):

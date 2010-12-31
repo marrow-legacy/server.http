@@ -218,17 +218,6 @@ class HTTPProtocol(Protocol):
                         status = status.encode('iso-8859-1')
                 
                     # Do likewise for the header values.
-                    # Interesting note, in timeit timings, this is about 2x faster than re-creating the list: 
-                    # Good headers: (all bytestrings)
-                    # List creation and iteration: 4.53897809982
-                    # List iteration and substitution: 3.99575710297
-                    # Mixed headers: (half bytestrings)
-                    # List creation and iteration: 7.10801100731
-                    # List iteration and substitution: 3.94248199463
-                    # Bad headers: (all unicode)
-                    # List creation and iteration: 8.7310090065
-                    # List iteration and substitution: 4.10248017311
-                    # TODO: Remove above note at some point.
                     for i in range(len(headers)):
                         name, value = headers[i]
                     
@@ -262,12 +251,12 @@ class HTTPProtocol(Protocol):
                 if env['SERVER_PROTOCOL'] == "HTTP/1.1" and b'content-length' not in present:
                     headers.append((b"Transfer-Encoding", b"chunked"))
                     headers = env['SERVER_PROTOCOL'].encode('iso-8859-1') + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + dCRLF
-                    self.client.write(headers, partial(self.client.write_body_chunked_pedantic if self.protocol.pedantic else self.client.write_body_chunked, body, iter(body)))
+                    self.client.write(headers, partial(self.write_body_chunked_pedantic if self.protocol.pedantic else self.write_body_chunked, body, iter(body)))
                     return
                 
                 headers = env['SERVER_PROTOCOL'].encode('iso-8859-1') + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + dCRLF
                 
-                self.client.write(headers, partial(self.client.write_body_pedantic if self.protocol.pedantic else self.client.write_body, body, iter(body)))
+                self.client.write(headers, partial(self.write_body_pedantic if self.protocol.pedantic else self.write_body, body, iter(body)))
             
             except:
                 log.exception("Unhandled application exception.")
@@ -276,36 +265,44 @@ class HTTPProtocol(Protocol):
         def write_body_pedantic(self, original, body):
             try:
                 chunk = bytestring(next(body))
-                self.client.write(chunk, partial(self.client.write_body_pedantic, original, body))
+                self.client.write(chunk, partial(self.write_body_pedantic, original, body))
             
             except StopIteration:
                 self.finish()
             
-            finally:
+            except:
                 try:
                     original.close()
                 except AttributeError:
                     pass
+                raise
         
         def write_body(self, original, body):
             try:
                 chunk = next(body)
-                self.client.write(chunk, partial(self.client.write_body, original, body))
+                log.debug('Sending body: %s', chunk)
+                self.client.write(chunk, partial(self.write_body, original, body))
             
             except StopIteration:
                 self.finish()
+                
+                try:
+                    original.close()
+                except AttributeError: # pragma: no cover
+                    pass
             
-            finally:
+            except:
                 try:
                     original.close()
                 except AttributeError:
                     pass
+                raise
         
         def write_body_chunked_pedantic(self, original, body):
             try:
                 chunk = bytestring(next(body))
                 chunk = unicode(hex(len(chunk)))[2:].encode('ascii') + CRLF + chunk + CRLF
-                self.client.write(chunk, partial(self.client.write_body_chunked_pedantic, original, body))
+                self.client.write(chunk, partial(self.write_body_chunked_pedantic, original, body))
             
             except StopIteration:
                 try:
@@ -314,12 +311,19 @@ class HTTPProtocol(Protocol):
                     pass
                 
                 self.client.write(b"0" + dCRLF, self.finish)
+            
+            except: # pragma: no cover TODO EDGE CASE
+                try:
+                    original.close()
+                except AttributeError:
+                    pass
+                raise
         
         def write_body_chunked(self, original, body):
             try:
                 chunk = next(body)
                 chunk = unicode(hex(len(chunk)))[2:].encode('ascii') + CRLF + chunk + CRLF
-                self.client.write(chunk, partial(self.client.write_body_chunked, original, body))
+                self.client.write(chunk, partial(self.write_body_chunked, original, body))
             
             except StopIteration:
                 try:
@@ -328,6 +332,13 @@ class HTTPProtocol(Protocol):
                     pass
                 
                 self.client.write(b"0" + dCRLF, self.finish)
+            
+            except: # pragma: no cover TODO EDGE CASE
+                try:
+                    original.close()
+                except AttributeError:
+                    pass
+                raise
         
         def _finish(self):
             # TODO: Pre-calculate this and pass self.client.close as the body writer callback only if we need to disconnect.
