@@ -9,25 +9,11 @@ from functools import partial
 from inspect import getouterframes, currentframe
 
 from marrow.server.protocol import Protocol
-from marrow.server.http import release
 
-from marrow.util.compat import binary, unicode, IO
+from marrow.util.object import LoggingFile
+from marrow.util.compat import binary, unicode, native, bytestring, uvalues, IO, formatdate, unquote, range
 
-try:
-    from email.utils import formatdate
-
-except ImportError:
-    from rfc822 import formatdate
-
-try:
-    from urllib import unquote_plus as unquote
-
-except:
-    from urllib.parse import unquote_plus as unquote_
-    
-    def unquote(t):
-        """Python 3 requires unquote to be passed unicode, but unicode characters may be encoded using quoted bytes!"""
-        return unquote_(t.decode('iso-8859-1')).encode('iso-8859-1')
+import release
 
 
 __all__ = ['HTTPProtocol', 'HTTPServer']
@@ -38,100 +24,9 @@ CRLF = b"\r\n"
 dCRLF = b"\r\n\r\n"
 HTTP_INTERNAL_ERROR = b" 500 Internal Server Error\r\nContent-Type: text/plain\r\nContent-Length: 48\r\n\r\nThe server encountered an unrecoverable error.\r\n"
 __versionstring__ = b'marrow.httpd/' + release.release.encode('iso-8859-1')
-
-
-
-# TODO: Separate out into marrow.util.
-try:
-    range = xrange
-
-except:
-    pass
-
-
-# TODO: Separate out into marrow.util.
-def bytestring(s, encoding="iso-8859-1", fallback="iso-8859-1"):
-    if not isinstance(s, unicode):
-        return s
-    
-    try:
-        s.encode(encoding)
-    
-    except UnicodeError:
-        s.encode(fallback)
-
-
-# TODO: Separate out into marrow.util.
-def native(s, encoding="iso-8859-1", fallback="iso-8859-1"):
-    if isinstance(s, str):
-        # fname, line = getouterframes(currentframe())[1][1:3]
-        # log.warn("Value is already native string.\n%s:%d", fname, line)
-        return s
-    
-    if str is unicode:
-        try:
-            return s.decode(encoding)
-        
-        except UnicodeError:
-            if fallback is None: raise
-            return s.decode(fallback)
-    
-    try:
-        return s.decode(encoding)
-    
-    except UnicodeError:
-        if fallback is None: raise
-        return s.decode(fallback)
-
 nCRLF = native(CRLF)
+errorlog = LoggingFile(logging.getLogger('wsgi.errors'))
 
-
-# TODO: Separate out into marrow.util.
-def uvalues(a, encoding="iso-8859-1", fallback="iso-8859-1"):
-    try:
-        v = []
-        
-        for s in a:
-            v.append(s.decode(encoding))
-        
-        return encoding, v
-    
-    except UnicodeError:
-        v = []
-        
-        for s in a:
-            v.apend(s.decode(fallback))
-        
-        return fallback, v
-
-
-# TODO: Separate out into marrow.util.
-class LoggingFile(object): # pragma: no cover
-    def __init__(self, logger=None, level=logging.ERROR):
-        logger = logger if logger else logging.getLogger('wsgi.errors')
-        self.logger = partial(logger.log, level)
-    
-    def write(self, text):
-        self.logger(text)
-    
-    def writelines(self, lines):
-        for line in lines:
-            self.logger(line)
-    
-    def close(self, *args, **kw): 
-        """A no-op method used for several of the file-like object methods."""
-        pass
-    
-    def next(self, *args, **kw):
-        """An error-raising exception usedbfor several of the methods."""
-        raise IOError("Logging files can not be read.")
-    
-    flush = close
-    read = next
-    readline = next
-    readlines = next
-
-errorlog = LoggingFile()
 
 
 class HTTPProtocol(Protocol):
@@ -183,13 +78,6 @@ class HTTPProtocol(Protocol):
             self.pipeline = protocol.options.get('pipeline', True) # TODO
             
             client.read_until(dCRLF, self.headers)
-        
-        def write(self, chunk, callback=None):
-            if self.finished:
-                raise Exception("Attempt to write to completed request.")
-            
-            if not self.client.closed():
-                self.client.write(chunk, callback)
         
         def finish(self):
             assert not self.finished, "Attempt complete an already completed request."
@@ -308,7 +196,7 @@ class HTTPProtocol(Protocol):
             self.work()
         
         def work(self):
-            # TODO: expand with 'self.writer' callable to support threading efficiently.
+            # TODO: expand with 'self.client.writer' callable to support threading efficiently.
             # Single-threaded we can write directly to the stream, multi-threaded we need to queue responses for the main thread to deliver.
             
             try:
@@ -374,21 +262,21 @@ class HTTPProtocol(Protocol):
                 if env['SERVER_PROTOCOL'] == "HTTP/1.1" and b'content-length' not in present:
                     headers.append((b"Transfer-Encoding", b"chunked"))
                     headers = env['SERVER_PROTOCOL'].encode('iso-8859-1') + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + dCRLF
-                    self.write(headers, partial(self.write_body_chunked_pedantic if self.protocol.pedantic else self.write_body_chunked, body, iter(body)))
+                    self.client.write(headers, partial(self.client.write_body_chunked_pedantic if self.protocol.pedantic else self.client.write_body_chunked, body, iter(body)))
                     return
                 
                 headers = env['SERVER_PROTOCOL'].encode('iso-8859-1') + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + dCRLF
                 
-                self.write(headers, partial(self.write_body_pedantic if self.protocol.pedantic else self.write_body, body, iter(body)))
+                self.client.write(headers, partial(self.client.write_body_pedantic if self.protocol.pedantic else self.client.write_body, body, iter(body)))
             
             except:
                 log.exception("Unhandled application exception.")
-                self.write(env['SERVER_PROTOCOL'].encode('iso-8859-1') + HTTP_INTERNAL_ERROR, self.finish)
+                self.client.write(env['SERVER_PROTOCOL'].encode('iso-8859-1') + HTTP_INTERNAL_ERROR, self.finish)
         
         def write_body_pedantic(self, original, body):
             try:
                 chunk = bytestring(next(body))
-                self.write(chunk, partial(self.write_body_pedantic, original, body))
+                self.client.write(chunk, partial(self.client.write_body_pedantic, original, body))
             
             except StopIteration:
                 self.finish()
@@ -402,7 +290,7 @@ class HTTPProtocol(Protocol):
         def write_body(self, original, body):
             try:
                 chunk = next(body)
-                self.write(chunk, partial(self.write_body, original, body))
+                self.client.write(chunk, partial(self.client.write_body, original, body))
             
             except StopIteration:
                 self.finish()
@@ -417,7 +305,7 @@ class HTTPProtocol(Protocol):
             try:
                 chunk = bytestring(next(body))
                 chunk = unicode(hex(len(chunk)))[2:].encode('ascii') + CRLF + chunk + CRLF
-                self.write(chunk, partial(self.write_body_chunked_pedantic, original, body))
+                self.client.write(chunk, partial(self.client.write_body_chunked_pedantic, original, body))
             
             except StopIteration:
                 try:
@@ -425,13 +313,13 @@ class HTTPProtocol(Protocol):
                 except AttributeError:
                     pass
                 
-                self.write(b"0" + dCRLF, self.finish)
+                self.client.write(b"0" + dCRLF, self.finish)
         
         def write_body_chunked(self, original, body):
             try:
                 chunk = next(body)
                 chunk = unicode(hex(len(chunk)))[2:].encode('ascii') + CRLF + chunk + CRLF
-                self.write(chunk, partial(self.write_body_chunked, original, body))
+                self.client.write(chunk, partial(self.client.write_body_chunked, original, body))
             
             except StopIteration:
                 try:
@@ -439,7 +327,7 @@ class HTTPProtocol(Protocol):
                 except AttributeError:
                     pass
                 
-                self.write(b"0" + dCRLF, self.finish)
+                self.client.write(b"0" + dCRLF, self.finish)
         
         def _finish(self):
             # TODO: Pre-calculate this and pass self.client.close as the body writer callback only if we need to disconnect.
