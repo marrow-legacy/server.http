@@ -39,7 +39,7 @@ def main(host="127.0.0.1", port=8888, pedantic=False, profile=False, threaded=0)
     python -c 'import pstats; pstats.Stats("/tmp/prof").strip_dirs().sort_stats("time").print_callers(20)'
     """
     
-    elif threaded == 0:
+    if threaded == 0:
         threaded = False
     
     def do():
