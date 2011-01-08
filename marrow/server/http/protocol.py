@@ -68,6 +68,9 @@ class HTTPProtocol(Protocol):
             env['wsgi.url_scheme'] = 'http'
             env['wsgi.async'] = False # TODO
             
+            if self.server.threaded is not False:
+                env['wsgi.executor'] = self.server.executor # pimp out the concurrent.futures thread pool executor
+            
             # env['wsgi.script_name'] = b''
             # env['wsgi.path_info'] = b''
             
@@ -89,6 +92,8 @@ class HTTPProtocol(Protocol):
         
         def headers(self, data):
             """Process HTTP headers, and pull in the body as needed."""
+            
+            # THREADING TODO: Experiment with threading this callback.
             
             # log.debug("Recieved: %r", data)
             self.environ = environ = dict(self.environ_template)
@@ -157,7 +162,7 @@ class HTTPProtocol(Protocol):
                     self.client.read_until(CRLF, self.body_chunked)
                     return
                 
-                self.work()
+                self.body_finished()
                 return
             
             length = int(environ['CONTENT_LENGTH'])
@@ -171,7 +176,7 @@ class HTTPProtocol(Protocol):
         def body(self, data):
             # log.debug("Recieved body: %r", data)
             self.environ['wsgi.input'] = IO(data)
-            self.work()
+            self.body_finished()
         
         def body_chunked(self, data):
             # log.debug("Recieved chunk header: %r", data)
@@ -193,74 +198,102 @@ class HTTPProtocol(Protocol):
             # log.debug("Recieved chunk trailers: %r", data)
             self.environ['wsgi.input'].seek(0)
             # TODO: Update headers with additional headers.
-            self.work()
+            self.body_finished()
         
-        def work(self):
-            # TODO: expand with 'self.client.writer' callable to support threading efficiently.
-            # Single-threaded we can write directly to the stream, multi-threaded we need to queue responses for the main thread to deliver.
+        def body_finished(self):
+            if self.server.threaded is not False:
+                # log.debug("Deferring response composition.")
+                future = self.server.executor.submit(self.compose_response)
+                
+                def callback(future):
+                    # log.debug("Deferred response composition finished.")
+                    
+                    try:
+                        # log.debug("Retreiving composed response.")
+                        response = future.result()
+                    
+                    except:
+                        log.exception("Unhandled application exception.")
+                        self.client.write(self.environ['SERVER_PROTOCOL'].encode('iso-8859-1') + HTTP_INTERNAL_ERROR, self.finish)
+                    
+                    # log.debug("Delivering response.")
+                    self.deliver(response)
+                
+                future.add_done_callback(callback)
+                return
             
             try:
-                env = self.environ
-                
-                for filter_ in self.protocol.ingress:
-                    filter_(env)
-                
-                status, headers, body = self.protocol.application(env)
-                
-                for filter_ in self.protocol.egress:
-                    status, headers, body = filter_(env, status, headers, body)
-                
-                # These conversions are optional; if the application is well-behaved they can be disabled.
-                # Of course, if pedantic is False, m.s.http isn't WSGI 2 compliant. (But it is faster!)
-                if self.protocol.pedantic:
-                    # Convert from unicode (native or otherwise) to bytestring.
-                    if isinstance(status, unicode):
-                        status = status.encode('iso-8859-1')
-                
-                    # Do likewise for the header values.
-                    for i in range(len(headers)):
-                        name, value = headers[i]
-                    
-                        if not isinstance(name, unicode) and not isinstance(value, unicode):
-                            continue
-                    
-                        if isinstance(name, unicode):
-                            name = name.encode('iso-8859-1')
-                    
-                        if isinstance(value, unicode):
-                            value = value.encode('iso-8859-1')
-                    
-                        headers[i] = (name, value)
-                
-                # Canonicalize the names of the headers returned by the application.
-                present = [i[0].lower() for i in headers]
-                
-                # Further optional conformance checks.
-                if self.protocol.pedantic:
-                    if b'transfer-encoding' in present: raise Exception()
-                    if b'connection' in present: raise Exception()
-                
-                if b'server' not in present:
-                    headers.append((b'Server', __versionstring__))
-                
-                if b'date' not in present:
-                    headers.append((b'Date', unicode(formatdate(time.time(), False, True)).encode('ascii')))
-                
-                # TODO: Ensure hop-by-hop and persistence headers are not returned.
-                
-                if env['SERVER_PROTOCOL'] == "HTTP/1.1" and b'content-length' not in present:
-                    headers.append((b"Transfer-Encoding", b"chunked"))
-                    headers = env['SERVER_PROTOCOL'].encode('iso-8859-1') + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + dCRLF
-                    self.client.write(headers, partial(self.write_body_chunked_pedantic if self.protocol.pedantic else self.write_body_chunked, body, iter(body)))
-                    return
-                
-                headers = env['SERVER_PROTOCOL'].encode('iso-8859-1') + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + dCRLF
-                
-                self.client.write(headers, partial(self.write_body_pedantic if self.protocol.pedantic else self.write_body, body, iter(body)))
+                self.deliver(self.compose_response())
             
             except:
                 log.exception("Unhandled application exception.")
-                self.client.write(env['SERVER_PROTOCOL'].encode('iso-8859-1') + HTTP_INTERNAL_ERROR, self.finish)
+                self.client.write(self.environ['SERVER_PROTOCOL'].encode('iso-8859-1') + HTTP_INTERNAL_ERROR, self.finish)
+        
+        def compose_response(self):
+            # log.debug("Composing response.")
+            env = self.environ
+            
+            for filter_ in self.protocol.ingress:
+                filter_(env)
+            
+            status, headers, body = self.protocol.application(env)
+            
+            for filter_ in self.protocol.egress:
+                status, headers, body = filter_(env, status, headers, body)
+            
+            # These conversions are optional; if the application is well-behaved they can be disabled.
+            # Of course, if pedantic is False, m.s.http isn't WSGI 2 compliant. (But it is faster!)
+            if self.protocol.pedantic:
+                # Convert from unicode (native or otherwise) to bytestring.
+                if isinstance(status, unicode):
+                    status = status.encode('iso-8859-1')
+                
+                # Do likewise for the header values.
+                for i in range(len(headers)):
+                    name, value = headers[i]
+                    
+                    if not isinstance(name, unicode) and not isinstance(value, unicode):
+                        continue
+                    
+                    if isinstance(name, unicode):
+                        name = name.encode('iso-8859-1')
+                    
+                    if isinstance(value, unicode):
+                        value = value.encode('iso-8859-1')
+                    
+                    headers[i] = (name, value)
+            
+            # Canonicalize the names of the headers returned by the application.
+            present = [i[0].lower() for i in headers]
+            
+            # Further optional conformance checks.
+            if self.protocol.pedantic:
+                if b'transfer-encoding' in present: raise Exception()
+                if b'connection' in present: raise Exception()
+            
+            if b'server' not in present:
+                headers.append((b'Server', __versionstring__))
+            
+            if b'date' not in present:
+                headers.append((b'Date', unicode(formatdate(time.time(), False, True)).encode('ascii')))
+            
+            # TODO: Ensure hop-by-hop and persistence headers are not returned.
+            
+            if env['SERVER_PROTOCOL'] == "HTTP/1.1" and b'content-length' not in present:
+                headers.append((b"Transfer-Encoding", b"chunked"))
+                headers = env['SERVER_PROTOCOL'].encode('iso-8859-1') + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + dCRLF
+                return headers, partial(self.write_body_chunked_pedantic if self.protocol.pedantic else self.write_body_chunked, body, iter(body))
+            
+            headers = env['SERVER_PROTOCOL'].encode('iso-8859-1') + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + dCRLF
+            return headers, partial(self.write_body_pedantic if self.protocol.pedantic else self.write_body, body, iter(body))
+        
+        def deliver(self, response):
+            # TODO: expand with 'self.client.writer' callable to support threading efficiently.
+            # Single-threaded we can write directly to the stream, multi-threaded we need to queue responses for the main thread to deliver.
+            
+            # log.debug("Delivering the response.")
+            
+            self.client.write(*response)
         
         def write_body_pedantic(self, original, body):
             try:
@@ -280,7 +313,7 @@ class HTTPProtocol(Protocol):
         def write_body(self, original, body):
             try:
                 chunk = next(body)
-                log.debug('Sending body: %s', chunk)
+                # log.debug('Sending body: %s', chunk)
                 self.client.write(chunk, partial(self.write_body, original, body))
             
             except StopIteration:
