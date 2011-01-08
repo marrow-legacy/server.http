@@ -26,7 +26,10 @@ def prune(request, input=False):
 def generator(request):
     def inner():
         for i in range(10):
-            yield str(i)
+            try:
+                yield str(i).encode('ascii')
+            except AttributeError:
+                yield str
     
     return b"200 OK", [(b'Content-Length', b'10')], inner()
 
