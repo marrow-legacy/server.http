@@ -5,6 +5,7 @@ import sys
 import cProfile
 import signal
 import subprocess
+import logging
 
 from marrow.io.ioloop import IOLoop
 from marrow.script import execute, script, describe
@@ -13,7 +14,7 @@ from marrow.server.http import HTTPServer
 
 
 def hello(request):
-    return b'200 OK', [(b'Content-Length', 13), (b'Content-Type', b'text/plain')], [b'Hello world!\n']
+    return b'200 OK', [(b'Content-Length', b'13'), (b'Content-Type', b'text/plain')], [b'Hello world!\n']
 
 
 @script(
@@ -26,9 +27,10 @@ def hello(request):
         port="The port number to bind to.\nDefault: 8888",
         pedantic="Enable strict WSGI 2 compliance checks.",
         profile="If enabled, profiling results will be saved to \"results.prof\".",
-        threaded="If defined, spawn this many threads.\nDefault: No threading."
+        threaded="If defined, spawn this many threads.\nDefault: No threading.",
+        verbose="Increase the logging level from INFO to DEBUG."
     )
-def main(host="127.0.0.1", port=8888, pedantic=False, profile=False, threaded=0):
+def main(host="127.0.0.1", port=8888, pedantic=False, profile=False, threaded=0, verbose=False):
     """A simple benchmark of Marrow's HTTP server.
     
     This script requires that ApacheBench (ab) be installed.
@@ -41,6 +43,8 @@ def main(host="127.0.0.1", port=8888, pedantic=False, profile=False, threaded=0)
     
     if threaded == 0:
         threaded = False
+    
+    logging.basicConfig(level=logging.DEBUG if verbose else logging.INFO)
     
     def do():
         
