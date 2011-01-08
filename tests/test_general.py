@@ -10,7 +10,7 @@ from marrow.server.http.testing import HTTPTestCase, CRLF, EOH
 
 from marrow.util.compat import unicode
 
-from applications import die, hello_unicode, generator
+from applications import die, generator
 
 
 log = __import__('logging').getLogger(__name__)
