@@ -25,7 +25,7 @@ def hello(request):
         host="The interface to bind to.\nDefault: \"127.0.0.1\"",
         port="The port number to bind to.\nDefault: 8888",
         pedantic="Enable strict WSGI 2 compliance checks.",
-        profile="If enabled, profiling results will be saved to \"results.prof\"."
+        profile="If enabled, profiling results will be saved to \"results.prof\".",
         threaded="If defined, spawn this many threads.\nDefault: No threading."
     )
 def main(host="127.0.0.1", port=8888, pedantic=False, profile=False, threaded=0):
