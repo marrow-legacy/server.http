@@ -275,7 +275,7 @@ class HTTPProtocol(Protocol):
                 headers.append((b'Server', __versionstring__))
             
             if b'date' not in present:
-                headers.append((b'Date', unicode(formatdate(time.time(), False, True)).encode('ascii')))
+                headers.append((b'Date', bytestring(formatdate(time.time(), False, True))))
             
             # TODO: Ensure hop-by-hop and persistence headers are not returned.
             
