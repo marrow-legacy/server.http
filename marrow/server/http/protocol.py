@@ -334,7 +334,7 @@ class HTTPProtocol(Protocol):
         def write_body_chunked_pedantic(self, original, body):
             try:
                 chunk = bytestring(next(body))
-                chunk = unicode(hex(len(chunk)))[2:].encode('ascii') + CRLF + chunk + CRLF
+                chunk = bytestring(hex(len(chunk))[2:]) + CRLF + chunk + CRLF
                 self.client.write(chunk, partial(self.write_body_chunked_pedantic, original, body))
             
             except StopIteration:
@@ -355,7 +355,7 @@ class HTTPProtocol(Protocol):
         def write_body_chunked(self, original, body):
             try:
                 chunk = next(body)
-                chunk = unicode(hex(len(chunk)))[2:].encode('ascii') + CRLF + chunk + CRLF
+                chunk = bytestring(hex(len(chunk))[2:]) + CRLF + chunk + CRLF
                 self.client.write(chunk, partial(self.write_body_chunked, original, body))
             
             except StopIteration:
