@@ -95,7 +95,7 @@ class HTTPProtocol(Protocol):
             
             # THREADING TODO: Experiment with threading this callback.
             
-            # log.debug("Recieved: %r", data)
+            # log.debug("Received: %r", data)
             self.environ = environ = dict(self.environ_template)
             
             line = data[:data.index(CRLF)].split()
@@ -174,12 +174,12 @@ class HTTPProtocol(Protocol):
             self.client.read_bytes(length, self.body)
         
         def body(self, data):
-            # log.debug("Recieved body: %r", data)
+            # log.debug("Received body: %r", data)
             self.environ['wsgi.input'] = IO(data)
             self.body_finished()
         
         def body_chunked(self, data):
-            # log.debug("Recieved chunk header: %r", data)
+            # log.debug("Received chunk header: %r", data)
             length = int(data.strip(CRLF).split(b';')[0], 16)
             # log.debug("Chunk length: %r", length)
             
@@ -190,12 +190,12 @@ class HTTPProtocol(Protocol):
             self.client.read_bytes(length + 2, self.body_chunk)
         
         def body_chunk(self, data):
-            # log.debug("Recieved chunk: %r", data)
+            # log.debug("Received chunk: %r", data)
             self.environ['wsgi.input'].write(data[:-2])
             self.client.read_until(CRLF, self.body_chunked)
         
         def body_trailers(self, data):
-            # log.debug("Recieved chunk trailers: %r", data)
+            # log.debug("Received chunk trailers: %r", data)
             self.environ['wsgi.input'].seek(0)
             # TODO: Update headers with additional headers.
             self.body_finished()
