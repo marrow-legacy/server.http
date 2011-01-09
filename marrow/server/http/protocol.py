@@ -30,13 +30,12 @@ errorlog = LoggingFile(logging.getLogger('wsgi.errors'))
 
 
 class HTTPProtocol(Protocol):
-    def __init__(self, server, testing, application, ingress=None, egress=None, pedantic=True, encoding="utf8", **options):
+    def __init__(self, server, testing, application, ingress=None, egress=None, encoding="utf8", **options):
         super(HTTPProtocol, self).__init__(server, testing, **options)
         
         self.application = application
         self.ingress = ingress if ingress else []
         self.egress = egress if egress else []
-        self.pedantic = pedantic
         self.encoding = encoding
         
         self._name = server.name
@@ -242,21 +241,19 @@ class HTTPProtocol(Protocol):
                 status, headers, body = filter_(env, status, headers, body)
             
             # These conversions are optional; if the application is well-behaved they can be disabled.
-            # Of course, if pedantic is False, m.s.http isn't WSGI 2 compliant. (But it is faster!)
-            if self.protocol.pedantic:
-                assert isintance(status, binary), "Response status must be a bytestring."
-                
-                for i, j in headers:
-                    assert isinstance(i, binary), "Response header names must be bytestrings."
-                    assert isinstance(j, binary), "Response header values must be bytestrings."
+            # Of course, if disabled, m.s.http isn't WSGI 2 compliant. (But it is faster!)
+            assert isintance(status, binary), "Response status must be a bytestring."
+            
+            for i, j in headers:
+                assert isinstance(i, binary), "Response header names must be bytestrings."
+                assert isinstance(j, binary), "Response header values must be bytestrings."
             
             # Canonicalize the names of the headers returned by the application.
             present = [i[0].lower() for i in headers]
             
             # Further optional conformance checks.
-            if self.protocol.pedantic:
-                if b'transfer-encoding' in present: raise Exception()
-                if b'connection' in present: raise Exception()
+            assert b'transfer-encoding' not in present, "Applications must not set the Transfer-Encoding header."
+            assert b'connection' not in present, "Applications must not set the Connection header."
             
             if b'server' not in present:
                 headers.append((b'Server', __versionstring__))
@@ -269,10 +266,10 @@ class HTTPProtocol(Protocol):
             if env['SERVER_PROTOCOL'] == "HTTP/1.1" and b'content-length' not in present:
                 headers.append((b"Transfer-Encoding", b"chunked"))
                 headers = env['SERVER_PROTOCOL'].encode('iso-8859-1') + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + dCRLF
-                return headers, partial(self.write_body_chunked_pedantic if self.protocol.pedantic else self.write_body_chunked, body, iter(body))
+                return headers, partial(self.write_body_chunked, body, iter(body))
             
             headers = env['SERVER_PROTOCOL'].encode('iso-8859-1') + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + dCRLF
-            return headers, partial(self.write_body_pedantic if self.protocol.pedantic else self.write_body, body, iter(body))
+            return headers, partial(self.write_body, body, iter(body))
         
         def deliver(self, response):
             # TODO: expand with 'self.client.writer' callable to support threading efficiently.
@@ -282,24 +279,10 @@ class HTTPProtocol(Protocol):
             
             self.client.write(*response)
         
-        def write_body_pedantic(self, original, body):
-            try:
-                chunk = bytestring(next(body))
-                self.client.write(chunk, partial(self.write_body_pedantic, original, body))
-            
-            except StopIteration:
-                self.finish()
-            
-            except:
-                try:
-                    original.close()
-                except AttributeError:
-                    pass
-                raise
-        
         def write_body(self, original, body):
             try:
                 chunk = next(body)
+                assert isinstance(chunk, binary), "Body iterators must yield bytestrings."
                 # log.debug('Sending body: %s', chunk)
                 self.client.write(chunk, partial(self.write_body, original, body))
             
@@ -318,30 +301,10 @@ class HTTPProtocol(Protocol):
                     pass
                 raise
         
-        def write_body_chunked_pedantic(self, original, body):
-            try:
-                chunk = bytestring(next(body))
-                chunk = bytestring(hex(len(chunk))[2:]) + CRLF + chunk + CRLF
-                self.client.write(chunk, partial(self.write_body_chunked_pedantic, original, body))
-            
-            except StopIteration:
-                try:
-                    original.close()
-                except AttributeError:
-                    pass
-                
-                self.client.write(b"0" + dCRLF, self.finish)
-            
-            except: # pragma: no cover TODO EDGE CASE
-                try:
-                    original.close()
-                except AttributeError:
-                    pass
-                raise
-        
         def write_body_chunked(self, original, body):
             try:
                 chunk = next(body)
+                assert isinstance(chunk, binary), "Body iterators must yield bytestrings."
                 chunk = bytestring(hex(len(chunk))[2:]) + CRLF + chunk + CRLF
                 self.client.write(chunk, partial(self.write_body_chunked, original, body))
             

@@ -28,7 +28,7 @@ class TestHTTPProtocolGeneral(HTTPTestCase):
 
 
 class TestHTTPProtocolGenerator(HTTPTestCase):
-    arguments = dict(application=generator, pedantic=False)
+    arguments = dict(application=generator)
     
     def test_unicode_response(self):
         response = self.request()
@@ -37,4 +37,3 @@ class TestHTTPProtocolGenerator(HTTPTestCase):
         self.assertEquals(response.status, b"OK")
         self.assertEquals(response[b'content-length'], b"10")
         self.assertEquals(response.body, b"0123456789")
-        

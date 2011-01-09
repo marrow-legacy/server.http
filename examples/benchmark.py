@@ -25,12 +25,11 @@ def hello(request):
 @describe(
         host="The interface to bind to.\nDefault: \"127.0.0.1\"",
         port="The port number to bind to.\nDefault: 8888",
-        pedantic="Enable strict WSGI 2 compliance checks.",
         profile="If enabled, profiling results will be saved to \"results.prof\".",
         threads="If defined, allow this many threads in the executor pool.\nDefault: No threading.",
         verbose="Increase the logging level from INFO to DEBUG."
     )
-def main(host="127.0.0.1", port=8888, pedantic=False, profile=False, threads=0, verbose=False):
+def main(host="127.0.0.1", port=8888, profile=False, threads=0, verbose=False):
     """A simple benchmark of Marrow's HTTP server.
     
     This script requires that ApacheBench (ab) be installed.
@@ -48,7 +47,7 @@ def main(host="127.0.0.1", port=8888, pedantic=False, profile=False, threads=0, 
     
     def do():
         
-        server = HTTPServer(host=host, port=port, application=hello, pedantic=pedantic, threading=threads)
+        server = HTTPServer(host=host, port=port, application=hello, threading=threads)
         
         def handle_sigchld(sig, frame):
             server.io.add_callback(server.stop)
