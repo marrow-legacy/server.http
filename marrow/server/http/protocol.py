@@ -244,24 +244,11 @@ class HTTPProtocol(Protocol):
             # These conversions are optional; if the application is well-behaved they can be disabled.
             # Of course, if pedantic is False, m.s.http isn't WSGI 2 compliant. (But it is faster!)
             if self.protocol.pedantic:
-                # Convert from unicode (native or otherwise) to bytestring.
-                if isinstance(status, unicode):
-                    status = status.encode('iso-8859-1')
+                assert isintance(status, binary), "Response status must be a bytestring."
                 
-                # Do likewise for the header values.
-                for i in range(len(headers)):
-                    name, value = headers[i]
-                    
-                    if not isinstance(name, unicode) and not isinstance(value, unicode):
-                        continue
-                    
-                    if isinstance(name, unicode):
-                        name = name.encode('iso-8859-1')
-                    
-                    if isinstance(value, unicode):
-                        value = value.encode('iso-8859-1')
-                    
-                    headers[i] = (name, value)
+                for i, j in headers:
+                    assert isinstance(i, binary), "Response header names must be bytestrings."
+                    assert isinstance(j, binary), "Response header values must be bytestrings."
             
             # Canonicalize the names of the headers returned by the application.
             present = [i[0].lower() for i in headers]
