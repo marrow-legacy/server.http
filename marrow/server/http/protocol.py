@@ -13,7 +13,6 @@ from marrow.util.object import LoggingFile
 from marrow.util.compat import binary, unicode, native, bytestring, uvalues, IO, formatdate, unquote
 
 from marrow.server.http import release
-from marrow.server.http import executor
 
 
 __all__ = ['HTTPProtocol']
@@ -66,7 +65,7 @@ class Request(object):
         env['wsgi.async'] = False # TODO
         
         if server.threaded is not False:
-            env['wsgi.executor'] = server.executor
+            env['wsgi.submit'] = server.executor.submit
         
         self.pipeline = protocol.pipeline
 
@@ -208,7 +207,7 @@ class HTTPProtocol(Protocol):
                     request.writer(request, generator, data)
                     return
                 
-                elif isinstance(data, executor.Future):
+                elif hasattr(data, 'add_done_callback'):
                     # We have a callback to prepare.
                     data.add_done_callback(partial(self.resume, request, generator))
                     return
