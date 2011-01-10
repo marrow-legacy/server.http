@@ -14,7 +14,8 @@ from marrow.server.http import HTTPServer
 
 
 def hello(request):
-    return b'200 OK', [(b'Content-Length', b'13'), (b'Content-Type', b'text/plain')], [b'Hello world!\n']
+    yield b'200 OK', [(b'Content-Length', b'13'), (b'Content-Type', b'text/plain')]
+    yield b'Hello world!\n'
 
 
 @script(
@@ -26,10 +27,9 @@ def hello(request):
         host="The interface to bind to.\nDefault: \"127.0.0.1\"",
         port="The port number to bind to.\nDefault: 8888",
         profile="If enabled, profiling results will be saved to \"results.prof\".",
-        threads="If defined, allow this many threads in the executor pool.\nDefault: No threading.",
         verbose="Increase the logging level from INFO to DEBUG."
     )
-def main(host="127.0.0.1", port=8888, profile=False, threads=0, verbose=False):
+def main(host="127.0.0.1", port=8888, profile=False, verbose=False):
     """A simple benchmark of Marrow's HTTP server.
     
     This script requires that ApacheBench (ab) be installed.
@@ -40,14 +40,11 @@ def main(host="127.0.0.1", port=8888, profile=False, threads=0, verbose=False):
     python -c 'import pstats; pstats.Stats("/tmp/prof").strip_dirs().sort_stats("time").print_callers(20)'
     """
     
-    if threads == 0:
-        threads = False
-    
     logging.basicConfig(level=logging.DEBUG if verbose else logging.INFO)
     
     def do():
         
-        server = HTTPServer(host=host, port=port, application=hello, threading=threads)
+        server = HTTPServer(host=host, port=port, application=hello, threaded=25)
         
         def handle_sigchld(sig, frame):
             server.io.add_callback(server.stop)
