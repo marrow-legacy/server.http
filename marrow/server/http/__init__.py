@@ -3,6 +3,8 @@
 try:
     import fcntl
 except ImportError:
+    import os
+
     if os.name == 'nt':
         from marrow.io import win32_support as fcntl
     else:
