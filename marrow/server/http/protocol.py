@@ -13,7 +13,7 @@ from marrow.util.compat import binary, unicode, native, bytestring, uvalues, IO,
 from marrow.server.http import release
 
 
-__all__ = ['HTTPProtocol', 'HTTPServer']
+__all__ = ['HTTPProtocol']
 log = logging.getLogger(__name__)
 
 
