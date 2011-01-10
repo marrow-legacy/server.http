@@ -242,7 +242,7 @@ class HTTPProtocol(Protocol):
             
             # These conversions are optional; if the application is well-behaved they can be disabled.
             # Of course, if disabled, m.s.http isn't WSGI 2 compliant. (But it is faster!)
-            assert isintance(status, binary), "Response status must be a bytestring."
+            assert isinstance(status, binary), "Response status must be a bytestring."
             
             for i, j in headers:
                 assert isinstance(i, binary), "Response header names must be bytestrings."
