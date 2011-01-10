@@ -1,17 +1,14 @@
 # encoding: utf-8
 
 import logging
-import sys
-import cgi
 
 import time
 from functools import partial
-from inspect import getouterframes, currentframe
 
 from marrow.server.protocol import Protocol
 
 from marrow.util.object import LoggingFile
-from marrow.util.compat import binary, unicode, native, bytestring, uvalues, IO, formatdate, unquote, range
+from marrow.util.compat import binary, unicode, native, bytestring, uvalues, IO, formatdate, unquote
 
 from marrow.server.http import release
 
