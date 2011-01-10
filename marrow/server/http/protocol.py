@@ -261,13 +261,13 @@ class HTTPProtocol(Protocol):
             if b'date' not in present:
                 headers.append((b'Date', bytestring(formatdate(time.time(), False, True))))
             
-            if env.get('marrow.head', False):
-                body = []
+            is_head = env.get('marrow.head', False)
+            if is_head: body = []
             
             if env['SERVER_PROTOCOL'] == "HTTP/1.1" and b'content-length' not in present:
                 headers.append((b"Transfer-Encoding", b"chunked"))
                 headers = env['SERVER_PROTOCOL'].encode('iso-8859-1') + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + dCRLF
-                return headers, partial(self.write_body_chunked, body, iter(body))
+                return headers, partial(self.write_body if is_head else self.write_body_chunked, body, iter(body))
             
             headers = env['SERVER_PROTOCOL'].encode('iso-8859-1') + b" " + status + CRLF + CRLF.join([(i + b': ' + j) for i, j in headers]) + dCRLF
             return headers, partial(self.write_body, body, iter(body))
