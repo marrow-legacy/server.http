@@ -119,6 +119,10 @@ class HTTPProtocol(Protocol):
             environ['PARAMETERS'] = param
             environ['QUERY_STRING'] = query
             
+            if environ['REQUEST_METHOD'] == 'HEAD':
+                environ['marrow.head'] = True
+                environ['REQUEST_METHOD'] = 'GET'
+            
             _ = ('PATH_INFO', 'PARAMETERS', 'QUERY_STRING', 'FRAGMENT')
             environ['wsgi.uri_encoding'], __ = uvalues([environ[i] for i in _], self.protocol.encoding)
             environ.update(zip(_, __))
@@ -237,7 +241,10 @@ class HTTPProtocol(Protocol):
             for filter_ in self.protocol.egress:
                 status, headers, body = filter_(env, status, headers, body)
             
-            # These conversions are optional; if the application is well-behaved they can be disabled.
+            # Canonicalize the names of the headers returned by the application.
+            present = [i[0].lower() for i in headers]
+            
+            # These checks are optional; if the application is well-behaved they can be disabled.
             # Of course, if disabled, m.s.http isn't WSGI 2 compliant. (But it is faster!)
             assert isinstance(status, binary), "Response status must be a bytestring."
             
@@ -245,10 +252,6 @@ class HTTPProtocol(Protocol):
                 assert isinstance(i, binary), "Response header names must be bytestrings."
                 assert isinstance(j, binary), "Response header values must be bytestrings."
             
-            # Canonicalize the names of the headers returned by the application.
-            present = [i[0].lower() for i in headers]
-            
-            # Further optional conformance checks.
             assert b'transfer-encoding' not in present, "Applications must not set the Transfer-Encoding header."
             assert b'connection' not in present, "Applications must not set the Connection header."
             
@@ -258,7 +261,8 @@ class HTTPProtocol(Protocol):
             if b'date' not in present:
                 headers.append((b'Date', bytestring(formatdate(time.time(), False, True))))
             
-            # TODO: Ensure hop-by-hop and persistence headers are not returned.
+            if env.get('marrow.head', False):
+                body = []
             
             if env['SERVER_PROTOCOL'] == "HTTP/1.1" and b'content-length' not in present:
                 headers.append((b"Transfer-Encoding", b"chunked"))
