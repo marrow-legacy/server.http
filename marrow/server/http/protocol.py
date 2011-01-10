@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 CRLF = b"\r\n"
 dCRLF = b"\r\n\r\n"
 HTTP_INTERNAL_ERROR = b" 500 Internal Server Error\r\nContent-Type: text/plain\r\nContent-Length: 48\r\n\r\nThe server encountered an unrecoverable error.\r\n"
-__versionstring__ = b'marrow.httpd/' + release.release.encode('iso-8859-1')
+VERSION_STRING = b'marrow.httpd/' + release.release.encode('iso-8859-1')
 nCRLF = native(CRLF)
 errorlog = LoggingFile(logging.getLogger('wsgi.errors'))
 
@@ -256,7 +256,7 @@ class HTTPProtocol(Protocol):
             assert b'connection' not in present, "Applications must not set the Connection header."
             
             if b'server' not in present:
-                headers.append((b'Server', __versionstring__))
+                headers.append((b'Server', VERSION_STRING))
             
             if b'date' not in present:
                 headers.append((b'Date', bytestring(formatdate(time.time(), False, True))))
