@@ -16,6 +16,6 @@ if __name__ == '__main__':
     import logging
     logging.basicConfig(level=logging.INFO)
     
-    app = web.core.Application.factory(root=RootController, debug=True, **{'web.static': False})
+    app = web.core.Application.factory(root=RootController, debug=False, **{'web.static': False})
     
-    HTTPServer(None, 8080, fork=1, application=wsgi1(app)).start()
+    HTTPServer(None, 8080, threaded=5, fork=2, application=wsgi1(app)).start()
