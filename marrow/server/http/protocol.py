@@ -4,11 +4,12 @@ import logging
 
 import time
 from functools import partial
+from email.utils import formatdate
 
 from marrow.server.protocol import Protocol
 
 from marrow.util.object import LoggingFile
-from marrow.util.compat import binary, unicode, native, bytestring, uvalues, IO, formatdate, unquote
+from marrow.util.compat import binary, unicode, native, bytestring, uvalues, IO, unquote
 
 from marrow.server.http import release
 
