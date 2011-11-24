@@ -1,6 +1,7 @@
 # encoding: utf-8
 
 import logging
+import tempfile
 
 import time
 from functools import partial
@@ -155,6 +156,8 @@ class HTTPProtocol(Protocol):
             #     if self.remote_ip is not None:
             #         break
             
+            self.environ['wsgi.input'] = tempfile.SpooledTemporaryFile(1*1024*1024, 'w+b', suffix='http', prefix='marrow')
+            
             if environ.get("HTTP_EXPECT", None) == "100-continue":
                 self.client.write(b"HTTP/1.1 100 (Continue)\r\n\r\n")
             
@@ -176,7 +179,7 @@ class HTTPProtocol(Protocol):
         
         def body(self, data):
             # log.debug("Received body: %r", data)
-            self.environ['wsgi.input'] = IO(data)
+            self.environ['wsgi.input'].write(data)
             self.body_finished()
         
         def body_chunked(self, data):
@@ -197,11 +200,12 @@ class HTTPProtocol(Protocol):
         
         def body_trailers(self, data):
             # log.debug("Received chunk trailers: %r", data)
-            self.environ['wsgi.input'].seek(0)
             # TODO: Update headers with additional headers.
             self.body_finished()
         
         def body_finished(self):
+            self.environ['wsgi.input'].seek(0)
+            
             if self.server.threaded is not False:
                 # log.debug("Deferring response composition.")
                 future = self.server.executor.submit(self.compose_response)
