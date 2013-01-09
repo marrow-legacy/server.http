@@ -51,7 +51,7 @@ class HTTPProtocol(Protocol):
             self.client = client
             
             env = dict()
-            env['REMOTE_ADDR'] = client.address[0]
+            env['REMOTE_ADDR'] = client.socket.getpeername()
             env['SERVER_NAME'] = protocol._name
             env['SERVER_ADDR'] = protocol._addr
             env['SERVER_PORT'] = protocol._port
