@@ -220,6 +220,7 @@ class HTTPProtocol(Protocol):
                     except:
                         log.exception("Unhandled application exception.")
                         self.client.write(self.environ['SERVER_PROTOCOL'].encode('iso-8859-1') + HTTP_INTERNAL_ERROR, self.finish)
+                        return
                     
                     # log.debug("Delivering response.")
                     self.deliver(response)
